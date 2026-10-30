@@ -51,8 +51,8 @@ class LabTests(unittest.TestCase):
         self.lab.outcome='running';self.lab.steps['inform']='done'
         with self.assertRaises(ValueError):self.lab.stop()
         self.journal('restored',True);self.lab.outcome='success'
-        # Completed sessions no longer offer Stop; cleanup belongs to the worker.
-        self.lab.stop();self.assertFalse(self.lab.process.signals)
+        # Completed sessions can still be closed gracefully if their worker is alive.
+        self.lab.stop();self.assertEqual(len(self.lab.process.signals),1)
 
     def test_readonly_finish_and_redaction(self):
         self.lab.settings={'mode':'readonly'}

@@ -1,6 +1,6 @@
 # ACS Lab Studio
 
-**Vantiva EGA225CTRN3 / GENT-R** için yerel PPPoE ve TR-069 (ACS) test ve yapılandırma aracı. Bilgisayarın Ethernet bağlantısı üzerinden çalışır. Güncel sürüm: **v1.15**.
+**Vantiva EGA225CTRN3 / GENT-R** için yerel PPPoE ve TR-069 (ACS) test ve yapılandırma aracı. Bilgisayarın Ethernet bağlantısı üzerinden çalışır. Güncel sürüm: **v1.16**.
 
 ## Başlamadan önce
 
@@ -35,8 +35,8 @@ USB veya dahili Ethernet seçilebilir. Linux ve Windows'ta kart/sürücü uyumlu
 
 ## Kurulum ve kullanım
 
-1. [Son release'i açın](https://github.com/bucagdas/acs-lab-studio/releases/latest) ve **Assets** bölümünden `acs-lab-studio-v1.15.zip` dosyasını indirin.
-2. ZIP'i çıkarın. Aşağıdaki kurulum adımlarını çıkarılan `acs-lab-studio` klasöründe uygulayın, ardından sisteminize uygun başlatıcıyı açın.
+1. [Son release'i açın](https://github.com/bucagdas/acs-lab-studio/releases/latest) ve **Assets** bölümünden `acs-lab-studio-v1.16.zip` dosyasını indirin.
+2. ZIP'i çıkarın. Güncellemede Studio'yu kapatıp dosyaları mevcut klasöre yazın; `.runs/` ve `.state/` klasörlerini koruyun. Ardından sisteminize uygun başlatıcıyı açın.
 
 macOS ve Linux için Python 3.9+, Scapy, pppd ve OpenSSL gerekir. Linux'ta ayrıca iproute2 ve çekirdek PPP desteği gerekir. Başlatıcı ağ işlemleri için yönetici yetkisi ister.
 
@@ -75,6 +75,6 @@ Görseller arayüz önizlemesidir; canlı cihaz testi sonucu içermez.
 
 ## Kayıtlar ve kurtarma
 
-Oturumlar `.runs/`, kurtarma kayıtları `.state/` içinde tutulur; hassas cihaz bilgileri içerebilir. Bu klasörleri paylaşmayın ve bekleyen geri alma kaydı varken silmeyin. Yazma/geri alma sürerken programı zorla kapatmayın. Kesinti sonrası paneldeki kurtarma adımlarını izleyin.
+Oturumlar `.runs/`, kurtarma kayıtları `.state/` içinde tutulur; hassas cihaz bilgileri içerebilir. Bu klasörleri paylaşmayın ve bekleyen geri alma kaydı varken silmeyin. Yazma/geri alma sürerken programı zorla kapatmayın. Kesinti sonrası **Ağ ayarını kurtar** düğmesini kullanın. Bu işlem router bağlantısı gerektirmez; başka bir uygulamanın değiştirdiği PAP dosyasının üzerine yazmaz.
 
 Ayrıntılı kurulum, işlem sınırları ve kurtarma: [GUIDE.md](GUIDE.md). Windows desteği: [WINDOWS.md](WINDOWS.md). Sürüm geçmişi: [CHANGELOG.md](CHANGELOG.md).

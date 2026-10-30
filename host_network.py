@@ -35,6 +35,23 @@ def prepare_socket(sock):
 
 
 class LabHTTPServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def get_request(self):
+        connection, address = super().get_request()
+        try:
+            if hasattr(self, 'allowed_peer') and address[0] != self.allowed_peer:
+                raise OSError('Unrelated client')
+            connection.settimeout(15)
+            if getattr(self, 'tls_context', None) is not None:
+                # Handshake belongs to the daemon request thread, never accept().
+                connection = self.tls_context.wrap_socket(
+                    connection, server_side=True, do_handshake_on_connect=False)
+            return connection, address
+        except Exception:
+            connection.close()
+            raise
+
     def server_bind(self):
         prepare_socket(self.socket)
         super().server_bind()

@@ -13,6 +13,7 @@ import time
 import uuid
 from collections import deque
 from pathlib import Path
+from network_recovery import recover
 from host_network import (host_info, valid_interface_name, interfaces,
                           interface_details, dependency_issues, service_address,
                           service_addresses, prepare_socket)
@@ -91,6 +92,8 @@ def public_line(line):
         return None
     if any(word in line.lower() for word in ('password', 'authorization', 'cookie', '<?xml', '<soap', 'pap auth', 'chap auth')):
         return None
+    if line.startswith(('[dns]', '[ntp]')) and not any(word in line.lower() for word in ('listening', 'failed')):
+        return None
     line = re.sub(r'(Inform from )\S+', r'\1[cihaz]', line)
     return line[:1200]
 
@@ -148,6 +151,9 @@ class Lab:
         self.discovery = {'running': False, 'iface': None, 'candidates': [],
                           'error': '', 'cancelled': False, 'id': None}
         self.process = None
+        self.worker_thread = None
+        self.finished = None
+        self.cleanup_failed = False
         self.events = deque(maxlen=4000)
         self.sequence = 0
         self.run_id = None
@@ -193,6 +199,24 @@ class Lab:
         try:return json.loads((self.run_dir/'root-password-transfer.json').read_text())
         except (OSError,ValueError):return {}
 
+    def _running(self):
+        return bool((self.process is not None and self.process.poll() is None) or
+                    (self.worker_thread is not None and self.worker_thread.is_alive()))
+
+    def recover_network(self):
+        with self.lock:
+            if self.preview or os.geteuid() != 0:
+                raise ValueError('Ağ kurtarma için uygulamayı yönetici yetkisiyle açın.')
+            if self._running() or self.discovery['running']:
+                raise ValueError('Önce mevcut ağ oturumunun kapanmasını bekleyin.')
+            try:
+                restored = recover(self.base)
+            except (OSError, ValueError) as exc:
+                raise ValueError(str(exc)) from exc
+            self.error = ''
+            self.log('Geçici ağ ayarı geri alındı.' if restored else 'Bekleyen ağ kurtarma kaydı yok.')
+            return self.snapshot()
+
     def readiness(self):
         reasons=[]
         if self.preview:
@@ -202,9 +226,9 @@ class Lab:
             reasons.append('Ağ testi için ' + host_info()['launcher'] + ' dosyasını sudo yetkisiyle çalıştırın.')
         if importlib.util.find_spec('scapy') is None:
             reasons.append('Bu Python ortamında scapy bulunamadı.')
-        running=self.process is not None and self.process.poll() is None
+        running=self._running()
         if (self.state_dir/'pap-recovery.json').exists() and not running:
-            reasons.append('Önceki PAP kurulumu temizlenemedi. README’deki ağ kurtarma adımını uygulayın.')
+            reasons.append('Geçici ağ ayarı geri alınmalı. Ağ ayarını kurtar düğmesini kullanın.')
         return reasons
 
     def log(self, message, kind='info'):
@@ -219,14 +243,17 @@ class Lab:
 
     def snapshot(self, after=0):
         with self.lock:
-            running=self.process is not None and self.process.poll() is None
+            running=self._running()
             journal=self.read_journal()
             pending=journal.get('status') in ('pending','unknown')
             write_in_flight=bool(self.settings and self.settings['mode'] in ('write','sts_probe','root_password') and self.steps['inform']=='done' and self.outcome=='running')
             if self.settings and self.settings['mode']=='configure' and self.steps['inform']=='done' and self.outcome=='running':write_in_flight=True
             return dict(running=running, outcome='needs_restore' if pending and not running else self.outcome,
                         steps=dict(self.steps), values=dict(self.values), runId=self.run_id,
-                        settings=self.settings, elapsed=round(time.monotonic()-self.started) if self.started else 0,
+                        settings=self.settings, elapsed=round((self.finished or time.monotonic())-self.started) if self.started else 0,
+                        finishing=running and (self.outcome != 'running' or self.stopping),
+                        networkRecovery=(self.state_dir/'pap-recovery.json').exists() and not running,
+                        cleanupFailed=self.cleanup_failed,
                         journal=journal, pending=pending, canStop=running and self.outcome=='running' and not pending and not write_in_flight,
                         events=[e for e in self.events if e['id']>after], cursor=self.sequence,
                         readiness=self.readiness(), rollback=ROLLBACK, error=self.error, routerConfirmed=self.router_confirmed,
@@ -257,8 +284,8 @@ class Lab:
         with self.lock:
             if self.discovery['running']:
                 raise ValueError('Önce WAN keşfini durdurun veya tamamlanmasını bekleyin.')
-            if self.process and self.process.poll() is None:
-                raise ValueError('Bir test zaten çalışıyor.')
+            if self._running():
+                raise ValueError('Bir test çalışıyor veya ağ temizliği sürüyor.')
             reasons=self.readiness()
             if reasons:raise ValueError(' '.join(reasons))
             if settings['iface'] not in {item['id'] for item in interfaces()}:
@@ -290,6 +317,8 @@ class Lab:
             self.error=''
             self.router_confirmed=False
             self.outcome='running'
+            self.finished=None
+            self.cleanup_failed=False
             self.started=time.monotonic()
             command=[sys.executable,'-u',str(self.base/'runner.py'),'--mode',settings['mode'],
                      '--iface',settings['iface'],'--peer-mac',settings['mac'],'--vlan',str(settings['vlan']),
@@ -307,7 +336,8 @@ class Lab:
                 raise ValueError('Test motoru başlatılamadı.') from exc
             self.log('Test başlatıldı. Router WAN → seçilen Ethernet; yönetim SSH → Wi-Fi/LAN.')
             if journal.get('status')=='pending':self.log('Yarım kalan deneme algılandı; önce eski değer geri yüklenecek.','warn')
-            threading.Thread(target=self._watch,args=(self.process,),daemon=True).start()
+            self.worker_thread=threading.Thread(target=self._watch,args=(self.process,),daemon=True)
+            self.worker_thread.start()
 
     def consume(self, line):
         with self.lock:
@@ -324,6 +354,9 @@ class Lab:
                     self.steps[step]='done'
                     next_step={'inform':'methods','methods':'names','names':'read'}.get(step)
                     if next_step and self.steps.get(next_step)=='waiting':self.steps[next_step]='active'
+            if '[lab] NETWORK_CLEANUP_FAILED' in line:
+                self.cleanup_failed=True
+                self.error='Ağ temizliği tamamlanamadı. Ağ kurtarma durumunu kontrol edin.'
             if 'SetParameterValues RebootPersistent=0' in line:self.steps['write']='active'
             if '[config] Sending selected settings' in line:self.steps['write']='active'
             if '[sts] STS_DOWNLOAD_SENT' in line:self.steps['write']='active'
@@ -366,10 +399,6 @@ class Lab:
                 self.worker_marker=True
                 self.outcome='success'
                 self.steps['inform']=self.steps['methods']=self.steps['names']=self.steps['read']='done'
-                self.stopping=True
-                if self.process and self.process.poll() is None:
-                    try:self.process.send_signal(signal.SIGINT)
-                    except OSError:pass
             if '[acs] CPE SOAP Fault' in line and self.settings and self.settings['mode']=='readonly':
                 self.outcome='failed';self.error='Router salt okunur ACS sorgusuna hata döndürdü.';self.stopping=True
                 if self.process and self.process.poll() is None:
@@ -396,16 +425,22 @@ class Lab:
                     self.log('Geri alma doğrulanmadı. Router SSH üzerinden geri alma komutlarını uygulayın.','warn')
                 elif self.outcome not in ('success','restored_only','password_check_required','failed'):
                     self.outcome='stopped' if self.stopping else 'incomplete' if code==0 else 'failed'
+                self.finished=time.monotonic()
+                if code != 0 or (self.state_dir/'pap-recovery.json').exists():
+                    self.cleanup_failed=True
+                    self.error='Ağ motoru temiz kapanmadı. Ağ kurtarma durumunu kontrol edin.'
+                if self.cleanup_failed:
+                    self.outcome='failed'
                 self.log(f'Test motoru kapandı. Sonuç: {self.outcome}.')
         except Exception:
             with self.lock:
                 self.outcome='needs_restore' if self.read_journal().get('status')=='pending' else 'failed'
                 self.error='Test çıktısı okunamadı; süreç ve geri alma durumunu kontrol edin.'
+                self.finished=time.monotonic()
 
     def stop(self):
         with self.lock:
             if not self.process or self.process.poll() is not None:return
-            if self.outcome!='running':return
             if self.read_journal().get('status') in ('pending','unknown'):
                 raise ValueError('Yazma/geri alma sürüyor. Testi durdurmak yerine geri alma sonucunu bekleyin.')
             if self.settings['mode'] in ('write','configure','sts_probe','root_password') and self.steps['inform']=='done' and self.outcome=='running':

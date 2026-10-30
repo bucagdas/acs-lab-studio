@@ -1,5 +1,15 @@
 # Sürüm geçmişi
 
+## v1.16
+
+- İşlem tamamlandığında ağ oturumu son RPC yanıtından sonra otomatik kapanır; paket trafiğinin durması beklenmez.
+- Kapanışta PAP geri alma adımı, dinleyici veya alt süreç hatası olsa da çalışır.
+- Çevrimdışı ağ kurtarma düğmesi, ortak PAP kilidi ve güvenli tekrar kurtarma eklendi.
+- Panel ağ kapanışını gösterir; sonraki test temizlik tamamlandıktan sonra açılır.
+- Sayfa yenilendiğinde oturum ayarları geri gösterilir; süre sayacı kapanışta durur.
+- İlgisiz HTTP/DNS/NTP trafiği dışlanır; TLS el sıkışması sunucunun kapanışını engellemez.
+- Kesintisiz trafik, arka arkaya test, kesinti ve temizleme hatası için regresyon testleri eklendi.
+
 ## v1.15
 
 - Windows için deneysel Npcap + WSL 2 paket köprüsü ve kurulum başlatıcıları eklendi.

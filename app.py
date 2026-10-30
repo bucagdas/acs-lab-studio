@@ -82,6 +82,9 @@ class Handler(BaseHTTPRequestHandler):
             length=int(self.headers.get('Content-Length',0))
             if not 0<length<=8192:raise ValueError('İstek boyutu geçersiz.')
             data=json.loads(self.rfile.read(length))
+            if self.path=='/api/network/recover':
+                self.respond(200,LAB.recover_network())
+                return
             if self.path=='/api/discover':
                 self.respond(200,LAB.discover(data))
                 return

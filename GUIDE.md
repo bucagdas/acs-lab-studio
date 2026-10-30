@@ -64,7 +64,7 @@ python3 app.py --preview
 
 ## Platform doğrulaması
 
-Mac üzerinde 78 Python testi ve 6 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
+Mac üzerinde 91 Python testi ve 6 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
 
 Windows testleri; ikili kanalda parçalı okuma/yazma, yalnızca PPPoE aktarımı, USB/dahili kart listesi, kart seçim izinleri, kaynak MAC denetimi, bırakma/kapanış, WSL sanal NAT adaptörünün dışlanması ve güncellemede kurtarma kayıtlarının korunmasını kapsar. Bunlar taklit sürücü yanıtları ve yerel alt süreçlerle sınanır; gerçek Windows/Npcap testi değildir.
 
@@ -152,7 +152,9 @@ Son okuma 1 olmalı. Bekleyen journal varsa yazma testini yeniden başlatın; ar
 
 macOS ve Linux pppd, `/etc/ppp/pap-secrets` dosyasını kullandığı için motor test süresince laboratuvar eşine yönelik geçici bir PAP kuralı yazar. Boş secret davranışıyla operatör PPP parolası gerektirmez. Orijinal dosya, modu ve sahipliği özel oturum klasörüne kaydedilir; normal kapanışta geri alınır. `/etc/ppp/ip-up` değiştirilmez.
 
-Program zorla kapatılırsa veya bilgisayar kapanırsa otomatik geri alma tamamlanamayabilir. Bekleyen PAP kurtarma kaydı yeni testi engeller. Test süreçleri durduktan sonra:
+Program zorla kapatılırsa veya bilgisayar kapanırsa otomatik geri alma tamamlanamayabilir. Bekleyen PAP kurtarma kaydı yeni testi engeller. Önce Studio panelindeki **Ağ ayarını kurtar** düğmesini kullanın. Router bağlı olmak zorunda değildir. Kurtarma yalnızca çalışan test olmadığında yapılır; dosya dışarıdan değiştirilmişse durur. Aynı bilgisayardaki başka bir Studio ağ oturumu da ortak kilitle korunur.
+
+Alternatif olarak Studio kapalıyken, mevcut oturum ve kurtarma kayıtlarını içeren klasörde:
 
 ```sh
 sudo python3 recover_network.py

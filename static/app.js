@@ -31,10 +31,16 @@ function renderSshAccess(state){
 }
 function render(state){
   lastState=state;
+  if(state.runId && state.runId!==lastRun && state.settings){
+    const saved=state.settings;const active=document.querySelector('input[name=mode][value="'+saved.mode+'"]');if(active)active.checked=true;
+    const fields={iface:'iface',mac:'mac',vlan:'vlan',duration:'duration',management_ip:'management-ip',local_ip:'local-ip',peer_ip:'peer-ip',acs_ip:'acs-ip'};
+    for(const [key,id] of Object.entries(fields)){if(saved[key]!==undefined && (key!=='iface'||Array.from($(id).options).some(o=>o.value===saved[key])))$(id).value=String(saved[key]);}
+    topology();
+  }
   renderDiscovery(state.discovery);
   renderProgress(state);
   if(state.runId && state.runId!==lastRun){$('log').replaceChildren();lastRun=state.runId;}
-  const badge=$('badge');badge.textContent=labels[state.outcome]||state.outcome;
+  const badge=$('badge');badge.textContent=state.finishing?'AĞ KAPATILIYOR':labels[state.outcome]||state.outcome;
   badge.className='badge '+(state.outcome==='success'?'success':state.running?'running':['failed','needs_restore','incomplete'].includes(state.outcome)?'warn':'');
   const busy=state.running||discovering;
   $('settings').querySelectorAll('input,select,button').forEach(node=>{if(node.id!=='stop-discovery')node.disabled=busy;});
@@ -44,13 +50,14 @@ function render(state){
   if(state.pending&&!state.running)document.querySelector('input[name=mode][value=write]').checked=true;
   $('stop').disabled=!state.canStop;
   $('report').disabled=!state.runId;
-  $('connection').textContent=state.running?'CANLI':state.runId?'OTURUM SONUCU':'BEKLENİYOR';
+  $('connection').textContent=state.finishing?'KAPATILIYOR':state.running?'CANLI':state.runId?'OTURUM SONUCU':'BEKLENİYOR';
   $('run-id').textContent=state.runId?`OTURUM ${state.runId} · ${{write:'YAZMA / GERİ ALMA',configure:'YAPILANDIRMA',root_password:'ROOT PAROLASI',readonly:'SALT OKUNUR',log_upload:'LOG AKTARIMI',sts_probe:'STS TESTİ'}[state.settings.mode]}`:'Henüz oturum yok';
   $('router-confirmed').textContent=state.routerConfirmed?'WAN bağlantısı doğrulandı.':'Hedef router: PPPoE bağlantısı bekleniyor.';
   const seconds=state.elapsed||0;$('elapsed').textContent=`${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
   document.querySelectorAll('[data-step]').forEach(node=>{const status=state.steps[node.dataset.step];node.className=status;node.querySelector('i').textContent=status==='done'?'✓':status==='skipped'?'-':String(['link','inform','methods','names','read','write','restore'].indexOf(node.dataset.step)+1);});
   $('readiness').hidden=!state.readiness.length;$('readiness').textContent=state.readiness.join(' ');
-  const result=$('result');result.hidden=!['success','incomplete','failed','needs_restore','restored_only','stopped','password_check_required'].includes(state.outcome);
+  $('network-recover').hidden=!state.networkRecovery;$('network-recover').disabled=state.running||discovering;
+  const result=$('result');result.hidden=!!state.finishing||!['success','incomplete','failed','needs_restore','restored_only','stopped','password_check_required'].includes(state.outcome);
   result.classList.toggle('warning',state.outcome!=='success');$('result-symbol').textContent=state.outcome==='success'?'✓':'!';
   if(state.outcome==='success'){
     $('result-title').textContent=state.settings?.mode==='sts_probe'?'STS testi doğrulandı, eski değer geri yüklendi.':state.settings?.mode==='write'?'Yazma doğrulandı, eski değer geri yüklendi.':state.settings?.mode==='configure'?'Seçilen ayarlar yazıldı ve tekrar okunarak doğrulandı.':state.settings?.mode==='log_upload'?'Standart log dosyası alındı ve transfer doğrulandı.':'Salt okunur ACS sorguları tamamlandı.';
@@ -67,7 +74,7 @@ function render(state){
   for(const event of state.events)eventLine(event);
   cursor=state.cursor;
   if($('autoscroll').checked)$('log').scrollTop=$('log').scrollHeight;
-  if(state.error)error(state.error);
+  error(state.error||'');
   updateMode();
   renderNextActions(state);
 }
@@ -98,6 +105,7 @@ $('form').addEventListener('submit',async event=>{event.preventDefault();error('
   if(settings.mode==='configure'){const ssh=$('set-ssh').checked;const sshExtras=ssh&&$('ssh-action').value==='enable';settings.web_admin_role=$('set-admin-role').checked?'engineer':'keep';settings.target=Number($('target').value);settings.ssh_action=ssh?$('ssh-action').value:'keep';settings.persistence=sshExtras&&$('set-persistence').checked?$('persistence').value:'keep';if(sshExtras&&$('set-password').checked){if($('cli-password').value!==$('cli-confirm').value)throw Error('CLI parolaları eşleşmiyor.');settings.cli_password=$('cli-password').value;}}
   if(settings.mode==='root_password'){if($('root-password').value!==$('root-password-confirm').value)throw Error('Root parolaları eşleşmiyor.');settings.root_password=$('root-password').value;settings.root_password_confirm=$('root-password-confirm').value;settings.root_password_ack=$('root-password-ack').checked;}
   render(await api('/api/start',settings));}catch(e){error(e.message);$('start').disabled=!!lastState?.readiness.length;}finally{$('root-password').value='';$('root-password-confirm').value='';$('cli-password').value='';$('cli-confirm').value='';}});
+$('network-recover').addEventListener('click',async()=>{error('');$('network-recover').disabled=true;try{render(await api('/api/network/recover',{}));}catch(e){error(e.message);$('network-recover').disabled=false;}});
 $('stop').addEventListener('click',async()=>{error('');try{render(await api('/api/stop',{}));}catch(e){error(e.message);}});
 $('report').addEventListener('click',async()=>{try{const r=await fetch('/api/report',{headers:{'X-Local-Token':token}});if(!r.ok)throw Error('Rapor alınamadı.');const url=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=url;a.download='acs-test-report.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){error(e.message);}});
 async function poll(){if(polling||!booted)return;polling=true;try{render(await api('/api/events?after='+cursor));}catch(e){error('Sunucuya ulaşılamadı. Terminal açık olsun.');}finally{polling=false;}}
@@ -115,6 +123,7 @@ function renderProgress(state){
   const names={link:'PPPoE / IP bağlantısı',inform:'Router bildirimi',methods:'ACS yöntem sorgusu',names:'Router ayar listesi',read:'Salt okunur değerler',write:'Seçilen işlem',restore:'Geri alma'};
   const done=order.filter(step=>state.steps?.[step]==='done').length;
   $('progress').max=order.length;$('progress').value=done;
+  if(state.finishing){$('progress-title').textContent='Ağ oturumu kapatılıyor';$('progress-detail').textContent='İşlem sona erdi. Geçici ağ ayarı geri alınıyor; ardından yeni bir test başlatabilirsin.';return;}
   if(!state.runId){$('progress-title').textContent='Hazır';$('progress-detail').textContent='Test başlayınca ilerleme ve mevcut aşama burada görünür.';return;}
   if(mode==='readonly'&&state.outcome==='success'){$('progress-title').textContent='Salt okunur keşif tamamlandı';$('progress-detail').textContent='ACS okumaları bitti; ağ oturumu otomatik durduruldu.';return;}
   if(mode==='readonly'&&state.outcome==='incomplete'){$('progress-title').textContent='Bekleme süresi doldu';$('progress-detail').textContent='Okuma tamamlanamadı. Bağlantıyı kontrol et.';return;}

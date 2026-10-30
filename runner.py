@@ -8,6 +8,8 @@ import signal
 import sys
 from pathlib import Path
 from windows_bridge import selected_interface
+from network_recovery import PapLease
+from session_runtime import install_completion, close_servers
 
 BASE = Path(__file__).resolve().parent
 
@@ -44,10 +46,9 @@ def main():
         install(engine,run)
     bridge = None
     pap_path = Path('/etc/ppp/pap-secrets')
-    prior = None
     modified = False
     temporary = ('* * "" '+profile.get('peer_ip','10.116.13.101')+'\n').encode()
-    recovery = BASE/'.state'/'pap-recovery.json'
+    pap = PapLease(BASE, run, pap_path)
     timers = []
     upload_receiver = None
     original_timer = engine.threading.Timer
@@ -59,27 +60,9 @@ def main():
     engine.threading.Timer = managed_timer
 
     def managed_pap():
-        nonlocal prior, modified
+        nonlocal modified
         if not modified:
-            if pap_path.is_symlink():
-                raise RuntimeError('PAP file is a symlink; refusing replacement')
-            pap_path.parent.mkdir(parents=True, exist_ok=True)
-            if pap_path.exists():
-                stat = pap_path.stat()
-                prior = (pap_path.read_bytes(), stat.st_mode & 0o777, stat.st_uid, stat.st_gid)
-            # Keep a crash recovery snapshot in the private run directory.
-            (run/'pap-existed').write_text('yes' if prior else 'no')
-            if prior:
-                (run/'pap-original').write_bytes(prior[0])
-            recovery.write_text(json.dumps({'run':str(run), 'existed':bool(prior),
-                                           'mode':prior[1] if prior else 0o600,
-                                           'uid':prior[2] if prior else 0,
-                                           'gid':prior[3] if prior else 0,
-                                           'temporary':temporary.decode()}))
-            fd = os.open(pap_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with os.fdopen(fd, 'wb') as f:
-                f.write(temporary)
-            os.chmod(pap_path, 0o600)
+            pap.prepare(temporary)
             modified = True
         return str(pap_path)
 
@@ -109,6 +92,7 @@ def main():
         bridge = engine.Bridge(args)
         bridge.owned_servers = []
         bridge.owned_captures = []
+        install_completion(engine, args.mode, run, BASE/'.state', bridge.stop, upload_receiver)
         # Graceful duration handling is provided by sniff(timeout), not os._exit.
         def hard_stop():
             os.kill(os.getpid(), signal.SIGTERM)
@@ -120,36 +104,50 @@ def main():
     finally:
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        if upload_receiver is not None:
-            upload_receiver.shutdown()
-            upload_receiver.server_close()
+        failures = []
         for timer in timers:
             timer.cancel()
-        if bridge is not None:
-            bridge.stop.set()
-            for server in getattr(bridge, 'owned_servers', []):
-                server.shutdown()
-                server.server_close()
-            bridge.stop_pppd()
-            for capture in bridge.owned_captures:
-                if capture.poll() is None:
-                    capture.terminate()
+        try:
+            if bridge is not None:
+                bridge.stop.set()
+                try:
+                    bridge.stop_pppd()
+                except Exception:
+                    failures.append('PPP süreci kapatılamadı.')
+                try:
+                    if getattr(bridge, 'tx_sock', None) is not None:
+                        bridge.tx_sock.close()
+                except Exception:
+                    failures.append('Ethernet göndericisi kapatılamadı.')
+                for capture in bridge.owned_captures:
                     try:
-                        capture.wait(timeout=2)
+                        if capture.poll() is None:
+                            capture.terminate()
+                            try:
+                                capture.wait(timeout=2)
+                            except Exception:
+                                capture.kill()
+                                capture.wait(timeout=2)
                     except Exception:
-                        capture.kill()
-        if modified:
-            if pap_path.exists() and pap_path.read_bytes() == temporary:
-                if prior:
-                    pap_path.write_bytes(prior[0])
-                    os.chmod(pap_path, prior[1])
-                    os.chown(pap_path, prior[2], prior[3])
-                else:
-                    pap_path.unlink()
-                recovery.unlink(missing_ok=True)
-                print('[lab] Temporary PAP configuration restored', flush=True)
-            else:
-                print('[lab] PAP file changed externally; restore skipped. Private recovery snapshot retained.', flush=True)
+                        failures.append('Paket kaydı kapatılamadı.')
+            servers = list(getattr(bridge, 'owned_servers', []))
+            if upload_receiver is not None:
+                servers.append(upload_receiver)
+            failures.extend(close_servers(servers))
+        finally:
+            # A failed listener or child cleanup must never skip PAP restore.
+            try:
+                if modified or pap.record.exists() and pap.lock is not None:
+                    pap.restore()
+                    print('[lab] Temporary PAP configuration restored', flush=True)
+            except Exception:
+                failures.append('Geçici PAP ayarı geri alınamadı; ağ kurtarma kaydı korundu.')
+            finally:
+                pap.release()
+        if failures:
+            print('[lab] NETWORK_CLEANUP_FAILED: ' + ' '.join(failures), flush=True)
+        else:
+            print('[lab] NETWORK_CLEANUP_COMPLETE', flush=True)
         print('[lab] Worker finished', flush=True)
 
 

@@ -2,6 +2,9 @@
 """Isolated single-router ACS write probe. Changes only engineer RebootPersistent from 1 to 0, verifies, restores 1, verifies. Journal supports recovery; SSH rollback is required if interrupted and ACS cannot reconnect. Does not change Password, Enable, Access or root account."""
 
 import json
+from session_runtime import capture_session
+from scapy.all import AsyncSniffer
+
 import argparse
 import base64
 import hashlib
@@ -888,6 +891,9 @@ class ACSServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
+    def verify_request(self, request, address):
+        return address[0] == getattr(self, "allowed_peer", address[0])
+
     def __init__(self, addr, state):
         super().__init__(addr, ACSHandler)
         self.state = state
@@ -935,6 +941,8 @@ class Bridge:
                 print("[tx] send error: %s" % e)
 
     def on_packet(self, pkt):
+        if self.stop.is_set():
+            return
         if Dot1Q not in pkt or pkt[Dot1Q].vlan != self.vlan:
             return
         if pkt[Ether].src.lower() != self.peer_mac:
@@ -1129,6 +1137,8 @@ class Bridge:
                 continue
             except OSError:
                 break
+            if addr[0] != self.args.peer_ip:
+                continue
             if len(data) < 12:
                 continue
             tid = data[:2]
@@ -1179,6 +1189,8 @@ class Bridge:
                 continue
             except OSError:
                 break
+            if addr[0] != self.args.peer_ip:
+                continue
             if len(data) < 48:
                 continue
             now = time.time() + 2208988800
@@ -1217,6 +1229,7 @@ class Bridge:
             except OSError as e:
                 print("[acs] bind %d failed: %s" % (port, e))
                 continue
+            srv.allowed_peer = self.args.peer_ip
             self.owned_servers.append(srv)
             threading.Thread(target=srv.serve_forever, daemon=True).start()
             print("[acs] http listening on %s:%d" % (host, port))
@@ -1233,7 +1246,8 @@ class Bridge:
             ctx.load_cert_chain(ACS_CERT_PATH, ACS_KEY_PATH)
             for host in service_addresses(self.args.local_ip, self.args.acs_ip):
                 srv = ACSServer((host, 443), ACSState())
-                srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+                srv.tls_context = ctx
+                srv.allowed_peer = self.args.peer_ip
                 self.owned_servers.append(srv)
                 threading.Thread(target=srv.serve_forever, daemon=True).start()
                 print("[acs] https listening on %s:443" % host)
@@ -1314,7 +1328,7 @@ class Bridge:
         print("[*] Vantiva açık olmalı; WAN kablosu tanılama bilgisayarına bağlı olmalı.")
         print("[*] Otomatik PPPoE denemesini bekleyin; yalnızca PADI gelmezse WAN bağlantısını yeniden tetikleyin.")
         try:
-            sniff(iface=self.iface, prn=self.on_packet, store=False, timeout=self.args.timeout)
+            capture_session(self, AsyncSniffer)
         except KeyboardInterrupt:
             pass
         self.stop.set()
