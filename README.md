@@ -35,6 +35,9 @@ USB veya dahili Ethernet seçilebilir. Linux ve Windows'ta kart/sürücü uyumlu
 
 ## Kurulum ve kullanım
 
+1. [Son release'i açın](https://github.com/bucagdas/acs-lab-studio/releases/latest) ve **Assets** bölümünden `acs-lab-studio-v1.15.zip` dosyasını indirin.
+2. ZIP'i çıkarın. Aşağıdaki kurulum adımlarını çıkarılan `acs-lab-studio` klasöründe uygulayın, ardından sisteminize uygun başlatıcıyı açın.
+
 macOS ve Linux için Python 3.9+, Scapy, pppd ve OpenSSL gerekir. Linux'ta ayrıca iproute2 ve çekirdek PPP desteği gerekir. Başlatıcı ağ işlemleri için yönetici yetkisi ister.
 
 ```sh
@@ -43,6 +46,8 @@ python3 -m venv .venv
 ```
 
 Linux sistem paketleri ve ayrıntılar: [Teknik kılavuz](GUIDE.md). Windows'ta önce [Windows kurulumunu](WINDOWS.md) tamamlayın; `Kurulum.cmd`, `Kontrol.cmd` ve yönetici olarak `Baslat.cmd` sırasını izleyin.
+
+Bağlantıyı kurmak için:
 
 1. Bilgisayarın Ethernet bağlantısını Vantiva'nın **WAN / Internet** portuna takın.
 2. Sisteminizin başlatıcısını açın. Panel: **http://127.0.0.1:8890**.
