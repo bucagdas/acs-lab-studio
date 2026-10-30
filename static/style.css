@@ -277,3 +277,5 @@ footer{display:flex;justify-content:space-between;gap:16px;padding:24px 0;color:
   .getting-started{padding:18px}
   .getting-started ol{grid-template-columns:1fr;gap:16px}
 }
+
+.steps [hidden]{display:none}

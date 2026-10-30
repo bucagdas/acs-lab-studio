@@ -1,6 +1,6 @@
 # ACS Lab Studio
 
-**Vantiva EGA225CTRN3 / GENT-R** için yerel PPPoE ve TR-069 (ACS) test ve yapılandırma aracı. Bilgisayarın Ethernet bağlantısı üzerinden çalışır. Güncel sürüm: **v1.16.1**.
+**Vantiva EGA225CTRN3 / GENT-R** için yerel PPPoE ve TR-069 (ACS) test ve yapılandırma aracı. Bilgisayarın Ethernet bağlantısı üzerinden çalışır. Güncel sürüm: **v1.17**.
 
 ## Başlamadan önce
 
@@ -29,15 +29,15 @@ USB veya dahili Ethernet seçilebilir. Linux ve Windows'ta kart/sürücü uyumlu
 - Salt okunur keşif, sistem günlüğü aktarımı ve yazma/geri alma testleri sunar.
 - Mevcut web admin hesabına engineer rolü verir.
 - engineer ve superuser CLI hesaplarının LAN SSH izinlerini, kalıcılığını ve parolasını düzenler.
-- Uyumlu firmware'de Linux root parolasını ACS üzerinden değiştirmeyi dener.
+- Uyumlu firmware'de Linux root parolasını ACS üzerinden değiştirmeyi dener. Aynı adımda isteğe bağlı olarak LAN SSH hizmeti ve root parola girişi de açılabilir.
 
-**Web admin rolü, CLI hesabı ve Linux root hesabı ayrı işlemlerdir.** CLI hesap izni veya root parolası değiştirmek SSH hizmetini kendiliğinden açmaz. Root SSH için hizmet ve root giriş izinleri ayrıca açık olmalıdır. Parola değişikliğini yeni bir SSH bağlantısıyla doğrulayın; o zamana kadar mevcut yönetim oturumunu açık tutun.
+**Web admin rolü, CLI hesabı ve Linux root hesabı ayrı işlemlerdir.** CLI hesap izni veya yalnızca root parolasını değiştirmek SSH hizmetini açmaz. Root adımında **LAN SSH hizmetini ve root parola girişini de aç** seçeneği işaretlenirse LAN ayarları kaydedilir ve SSH hizmeti yeniden başlatılır; mevcut SSH oturumu kesilebilir. Bu yeni seçeneğin canlı cihaz doğrulaması bekliyor. Parola değişikliğini yeni bir SSH bağlantısıyla doğrulayın; o zamana kadar mevcut yönetim oturumunu açık tutun.
 
 Her işlem, istenen sonuç doğrulanınca ağ oturumunu kapatır. Süre ayarı yalnızca sonuç alınamayan işlemler için üst sınırdır.
 
 ## Kurulum ve kullanım
 
-1. [Son release'i açın](https://github.com/bucagdas/acs-lab-studio/releases/latest) ve **Assets** bölümünden `acs-lab-studio-v1.16.1.zip` dosyasını indirin.
+1. [Son release'i açın](https://github.com/bucagdas/acs-lab-studio/releases/latest) ve **Assets** bölümünden `acs-lab-studio-v1.17.zip` dosyasını indirin.
 2. ZIP'i çıkarın. Güncellemede Studio'yu kapatıp dosyaları mevcut klasöre yazın; `.runs/` ve `.state/` klasörlerini koruyun. Ardından sisteminize uygun başlatıcıyı açın.
 
 macOS ve Linux için Python 3.9+, Scapy, pppd ve OpenSSL gerekir. Linux'ta ayrıca iproute2 ve çekirdek PPP desteği gerekir. Başlatıcı ağ işlemleri için yönetici yetkisi ister.
@@ -58,11 +58,11 @@ Bağlantıyı kurmak için:
 5. Sonucu kontrol edip istediğiniz ayarları seçin. Her değişiklikten sonra cihaz üzerindeki etkisini doğrulayın.
 6. İşlemler tamamlandıktan sonra aynı operatör altyapısında kullanıma devam edecekseniz, WAN/ONT bağlantısını geri takmadan önce router'ın web arayüzünden **CWMP / TR-069'u kapatın**. Operatör ACS'si ayarları yeniden uygulayabilir. CWMP'yi testler bitmeden kapatmayın; Studio bağlantısı için gereklidir.
 
-SSH veya web yönetimi için ayrıca router'ın LAN ya da Wi-Fi ağına bağlı olun. Yönetim IP adresi panelden değiştirilebilir; `192.168.1.131` kullanmak zorunlu değildir. Keşifte paket gelmiyorsa WAN kablosunu çıkarıp tekrar takın.
+SSH veya web yönetimi için ayrıca router'ın LAN ya da Wi-Fi ağına bağlı olun. LAN yönetim IP adresi otomatik bulunmaz. Varsayılan `192.168.1.1` değerini, cihazın gerçek LAN IP adresine göre elle düzenleyin. Bu alan ACS bağlantısını değiştirmez. Keşifte paket gelmiyorsa WAN kablosunu çıkarıp tekrar takın.
 
 ## Ekran görüntüleri
 
-Görseller arayüz önizlemesidir; canlı cihaz testi sonucu içermez.
+Görseller v1.16.1 arayüz önizlemeleridir; canlı cihaz testi sonucu içermez. Yeni seçenekler kullanım bölümünde açıklanmıştır.
 
 ![Bağlantı hazırlığı ve oturum paneli](docs/images/overview.png)
 

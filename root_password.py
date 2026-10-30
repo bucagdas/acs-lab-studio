@@ -7,20 +7,44 @@ from http.server import BaseHTTPRequestHandler
 from host_network import LabHTTPServer as ThreadingHTTPServer, service_address
 
 
-def install(engine, settings, run, peer_ip, local_ip, port=8778):
+def build_payload(settings):
     password = settings.get('root_password', '')
     if not isinstance(password, str) or not re.fullmatch(r'[A-Za-z0-9_.@+\-]{12,64}', password):
         raise ValueError('Root parola biçimi geçersiz.')
-    # This firmware's already-verified STS service parser executes this fixed
-    # chpasswd operation. The allowlist above prevents shell metacharacters.
-    payload = (b'reboot off\n/etc/init.d/x;echo${IFS}root:' + password.encode('ascii') +
-               b'|chpasswd&&logger${IFS}-t${IFS}ACS_ROOT_PASS_TEST${IFS}CHPASS_OK||logger${IFS}-t${IFS}ACS_ROOT_PASS_TEST${IFS}CHPASS_FAIL\n')
-    del password
+    enable_ssh = settings.get('root_enable_lan_ssh', False)
+    if type(enable_ssh) is not bool:
+        raise ValueError('LAN SSH seçimi geçersiz.')
+    commands = ['echo${IFS}root:' + password + '|chpasswd']
+    if enable_ssh:
+        # Touch only the known LAN section; do not create a broad listener.
+        commands += [
+            'uci${IFS}-q${IFS}get${IFS}dropbear.lan|grep${IFS}-qx${IFS}dropbear',
+            'uci${IFS}-q${IFS}get${IFS}dropbear.lan.Interface|grep${IFS}-qx${IFS}lan',
+            'uci${IFS}set${IFS}dropbear.lan.enable=1',
+            'uci${IFS}set${IFS}dropbear.lan.RootLogin=1',
+            'uci${IFS}set${IFS}dropbear.lan.RootPasswordAuth=on',
+            'uci${IFS}set${IFS}dropbear.lan.PasswordAuth=on',
+            'uci${IFS}commit${IFS}dropbear',
+            '/etc/init.d/dropbear${IFS}enable',
+            '/etc/init.d/dropbear${IFS}restart',
+        ]
+    marker = 'ACS_ROOT_ACCESS_TEST' if enable_ssh else 'ACS_ROOT_PASS_TEST'
+    outcome = 'ROOT_ACCESS_REQUEST_OK' if enable_ssh else 'CHPASS_OK'
+    body = '&&'.join(commands)
+    body += '&&logger${IFS}-t${IFS}' + marker + '${IFS}' + outcome
+    failure = 'SETUP_FAIL' if enable_ssh else 'CHPASS_FAIL'
+    body += '||logger${IFS}-t${IFS}' + marker + '${IFS}' + failure
+    return ('reboot off\n/etc/init.d/x;' + body + '\n').encode('ascii')
+
+
+def install(engine, settings, run, peer_ip, local_ip, port=8778):
+    payload = build_payload(settings)
+    enable_ssh = settings.get('root_enable_lan_ssh', False)
     settings['root_password'] = ''
     token = secrets.token_urlsafe(24)
     route = '/root-password/' + token
     command = 'root-password-' + secrets.token_hex(6)
-    report = {'status': 'waiting', 'served': False, 'commandKey': command}
+    report = {'status': 'waiting', 'served': False, 'commandKey': command, 'lanSshRequested': enable_ssh}
 
     def save(**kw):
         report.update(kw)

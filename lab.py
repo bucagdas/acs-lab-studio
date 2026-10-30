@@ -49,7 +49,7 @@ def validate_settings(data):
         raise ValueError('Test süresi 120–900 saniye arasında olmalı.')
     result=dict(mode=mode, iface=iface, mac=mac, vlan=vlan, duration=duration)
     for name,default in [('local_ip','10.116.13.100'),('peer_ip','10.116.13.101'),
-                         ('acs_ip','193.192.97.234'),('management_ip','192.168.1.131')]:
+                         ('acs_ip','193.192.97.234'),('management_ip','192.168.1.1')]:
         if name not in data:continue
         try:address=ipaddress.IPv4Address(data[name])
         except (ValueError,TypeError):raise ValueError('Geçerli bir IPv4 adresi gerekli: '+name)
@@ -82,7 +82,9 @@ def validate_settings(data):
             raise ValueError('Root parolası 12–64 karakter olmalı: harf, rakam ve _ . @ + - kullanılabilir.')
         if not isinstance(confirmation,str) or password!=confirmation:
             raise ValueError('Root parola alanları eşleşmiyor.')
-        result.update(root_password=password,root_password_confirm=confirmation,root_password_ack=True)
+        enable_ssh=data.get('root_enable_lan_ssh',False)
+        if type(enable_ssh) is not bool:raise ValueError('LAN SSH seçimi geçersiz.')
+        result.update(root_password=password,root_password_confirm=confirmation,root_password_ack=True,root_enable_lan_ssh=enable_ssh)
     return result
 
 

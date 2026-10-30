@@ -1,5 +1,12 @@
 # Sürüm geçmişi
 
+## v1.17
+
+- LAN yönetim IP adresinin manuel olduğu açıklandı; varsayılan değer 192.168.1.1 yapıldı.
+- İlerleme aşamaları çalışma moduna göre gösterilir. Başarılı log aktarımı eksik bir 4/7 özeti yerine tamamlandı olarak gösterilir.
+- Root parola kartına isteğe bağlı LAN SSH hizmeti ve root parola girişi açma seçeneği eklendi. Seçilmezse SSH ayarları değişmez.
+- SSH açma isteği ile doğrulanmış hizmet durumu ayrı gösterilir. Yeni seçeneğin canlı cihaz doğrulaması bekliyor.
+
 ## v1.16.1
 
 - Her çalışma modunun bitiş koşulu ayrı tanımlandı ve doğrulandı.

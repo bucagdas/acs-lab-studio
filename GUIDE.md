@@ -64,7 +64,7 @@ python3 app.py --preview
 
 ## Platform doğrulaması
 
-Mac üzerinde 93 Python testi ve 6 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
+Mac üzerinde 98 Python testi ve 9 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
 
 Windows testleri; ikili kanalda parçalı okuma/yazma, yalnızca PPPoE aktarımı, USB/dahili kart listesi, kart seçim izinleri, kaynak MAC denetimi, bırakma/kapanış, WSL sanal NAT adaptörünün dışlanması ve güncellemede kurtarma kayıtlarının korunmasını kapsar. Bunlar taklit sürücü yanıtları ve yerel alt süreçlerle sınanır; gerçek Windows/Npcap testi değildir.
 
@@ -83,7 +83,7 @@ Router WAN  ← Ethernet / VLAN 35 →  Bilgisayar test ACS
 Router LAN  ← Wi-Fi             →  Bilgisayar SSH / web yönetimi
 ```
 
-Operatörün ONT bağlantısı test sırasında WAN'dan ayrılmış olmalı. Araç bilgisayarda çalışır; router'a 192.168.1.131 adresinden kurulmaz. **IP adresleri ve ağ ayarları** bölümünden LAN yönetim IP'si, bilgisayar PPP IP'si, router PPP IP'si ve ACS IP alias değiştirilebilir. LAN yönetim IP'si yalnızca bilgilendirme içindir; ACS işlemleri WAN üzerinden yürür. Varsayılan LAN adresi `192.168.1.131`, test PPP ağı bilgisayar `10.116.13.100` / router `10.116.13.101` olarak ayrıdır. WAN IPv4 bağlantısı kurulduktan sonra cihazın otomatik CWMP denemesi beklenir; her denemede reboot gerekmez. PADI gelmezse WAN bağlantısını yeniden tetiklemek gerekebilir.
+Operatörün ONT bağlantısı test sırasında WAN'dan ayrılmış olmalı. Araç bilgisayarda çalışır; router'a kurulmaz. **IP adresleri ve ağ ayarları** bölümünden LAN yönetim IP'si, bilgisayar PPP IP'si, router PPP IP'si ve ACS IP alias değiştirilebilir. LAN yönetim IP'si yalnızca bilgilendirme içindir; ACS işlemleri WAN üzerinden yürür. LAN yönetim IP adresi otomatik keşfedilmez ve elle girilir. Varsayılan LAN adresi `192.168.1.1`, test PPP ağı bilgisayar `10.116.13.100` / router `10.116.13.101` olarak ayrıdır. WAN IPv4 bağlantısı kurulduktan sonra cihazın otomatik CWMP denemesi beklenir; her denemede reboot gerekmez. PADI gelmezse WAN bağlantısını yeniden tetiklemek gerekebilir.
 
 Başlatma; tek hedef MAC için PPPoE yanıtlayıcısı, DNS/NTP ve test ACS servisleri açar. macOS'ta ACS/DNS/NTP dinleyicileri mevcut davranışla tüm IPv4 arayüzlerinde, Linux'ta yalnızca test IP adreslerinde dinler. Aracı izole laboratuvarda çalıştırın. Web kontrol paneli yalnızca `127.0.0.1` üzerinde dinler. Test sırasında internet hizmeti sağlanmaz. Güvenlik duvarı ayarı otomatik değiştirilmez.
 
@@ -123,13 +123,13 @@ Bu hesaplar web `admin` ve Linux `root` hesabından ayrıdır. CLI parolası roo
 
 `admin → engineer` yalnızca web arayüzü rolünü değiştirir. Kullanıcı adı admin kalır; admin adlı bir Linux/SSH hesabı oluşturulmaz. SSH listesinde cihazın mevcut engineer ve superuser hesapları bulunur; bu hesaplar sınırlı kabuk kullanır.
 
-**LAN SSH hesap izni** yalnızca seçilen CLI hesabının `Access` ve `Enable` alanlarını değiştirir. Dropbear hizmetini veya root giriş iznini açmaz. **Linux root parolasını değiştir** yalnızca root parolasını değiştirir; SSH hizmetini açmaz. Root SSH bağlantısı için hizmet, root giriş izni ve parola doğrulaması ayrıca açık olmalıdır.
+**LAN SSH hesap izni** yalnızca seçilen CLI hesabının `Access` ve `Enable` alanlarını değiştirir. Dropbear hizmetini veya root giriş iznini açmaz. **Linux root parolasını değiştir** varsayılan olarak yalnızca parolayı değiştirir. Aynı karttaki **LAN SSH hizmetini ve root parola girişini de aç** seçeneği ayrıca işaretlenirse bilinen `dropbear.lan` bölümü doğrulanır; LAN hizmeti, root girişi ve parola doğrulaması açılır, ayarlar kaydedilir ve SSH yeniden başlatılır. Mevcut SSH bağlantısı kesilebilir. Bölümün LAN arayüzüne ait olduğu doğrulanamazsa SSH ayarları değiştirilmez. Parola daha önce değiştirilmiş olabilir; aktarım sonucu tek başına hizmetin açıldığını kanıtlamaz. Bu yeni seçenek canlı cihaz üzerinde henüz doğrulanmadı.
 
 Salt okunur keşif, ACS sunuyorsa LAN Dropbear etkinlik, port ve parola giriş izinlerini okur. Paneldeki **Ayar açık** hizmetin yapılandırmasını belirtir; çalıştığını veya bağlantının başarılı olacağını kanıtlamaz. Sunulmayan alanlar **bilinmiyor / doğrulanmadı** kalır. Mevcut oturumda okuma yapılmadıysa **henüz okunmadı** gösterilir.
 
 ### Linux root parolasını ACS ile değiştirme
 
-**Linux root parolasını değiştir** ayrı çalışma modudur. Yeni parolayı iki kez girin ve onay kutusunu işaretleyin. Uygulama, bu firmware’de laboratuvar cihazında denenmiş STS Vendor Configuration aktarımını hedef WAN MAC’i doğrulandıktan sonra başlatır. Bu, stok cihazlarda veya başka firmware sürümlerinde çalışacağına dair garanti değildir.
+**Linux root parolasını değiştir** ayrı çalışma modudur. Yeni parolayı iki kez girin; SSH kapalıysa aynı karttaki LAN SSH seçeneğini de işaretleyin ve seçtiğiniz ayarları onaylayın. Uygulama, bu firmware’de laboratuvar cihazında denenmiş STS Vendor Configuration aktarımını hedef WAN MAC’i doğrulandıktan sonra başlatır. Bu, stok cihazlarda veya başka firmware sürümlerinde çalışacağına dair garanti değildir.
 
 Parola 12–64 karakter olmalı ve yalnızca harf, rakam, `_ . @ + -` içermelidir. Web arayüzü parola alanlarını istekten sonra temizler; ACS Lab parola içeriğini oturum durumuna, rapora veya uygulama günlüğüne eklemez. Aktarım hatası durumunda sonucu başarısız gösterir. `TransferComplete FaultCode=0` geldiğinde yalnızca **SSH ile doğrulama bekleniyor** gösterir; bunu parola değişti diye raporlamaz.
 

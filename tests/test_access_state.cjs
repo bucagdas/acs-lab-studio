@@ -44,3 +44,27 @@ test('Any disabled root-auth flag is reported as blocked',()=>{
 test('Missing or invalid ports are not shown as verified metadata',()=>{
   for(const port of ['0','65536','22;id','not-a-port'])assert.equal(access(state({Port:port})).port,null);
 });
+
+const progressStart=script.indexOf('function operationProgress(');
+const progressEnd=script.indexOf('function renderProgress(',progressStart);
+const progress=vm.runInNewContext(script.slice(progressStart,progressEnd)+';operationProgress');
+test('Successful log transfer is complete and has no write-test restore stage',()=>{
+  const result=progress({settings:{mode:'log_upload'},outcome:'success',steps:{link:'done',inform:'done',methods:'done',read:'done'}});
+  assert.equal(result.successTitle,'Standart log aktarımı başarılı');
+  assert.equal(result.done,result.order.length);
+  assert.equal(result.order.length,5);
+  assert(!result.order.includes('restore'));
+  assert(!result.order.includes('names'));
+});
+test('Progress includes only stages belonging to the selected operation',()=>{
+  assert.equal(progress({settings:{mode:'root_password'}}).order.length,4);
+  assert.equal(progress({settings:{mode:'configure'}}).order.length,6);
+  assert.equal(progress({settings:{mode:'write'}}).order.length,7);
+  assert.equal(progress({settings:{mode:'readonly'}}).order.length,5);
+});
+test('Requesting LAN root SSH is not shown as verified service availability',()=>{
+  const result=access({settings:{mode:'root_password',root_enable_lan_ssh:true},rootPasswordTransfer:{status:'transfer_reported'}});
+  assert.equal(result.service,'Açma isteği gönderildi');
+  assert.equal(result.root,'SSH ile doğrula');
+  assert.notEqual(result.service,'Ayar açık');
+});

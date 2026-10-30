@@ -4,6 +4,7 @@ const labels={idle:'HAZIR',running:'ÇALIŞIYOR',success:'DOĞRULANDI',incomplet
 function error(message){$('error').textContent=message;$('error').hidden=!message;}
 function eventLine(event){const row=document.createElement('div');row.className='log-entry '+event.kind;const time=document.createElement('time');time.textContent=event.time;const text=document.createElement('span');text.textContent=event.message;row.append(time,text);$('log').append(row);while($('log').children.length>1500)$('log').firstChild.remove();}
 function sshAccessState(state){
+  if(state.settings?.mode==='root_password' && state.settings.root_enable_lan_ssh && state.rootPasswordTransfer?.status==='transfer_reported')return {service:'Açma isteği gönderildi',root:'SSH ile doğrula',tone:'neutral',detail:'Yeni parolayla LAN / Wi-Fi üzerinden giriş yap. Hizmetin açıldığı henüz doğrulanmadı.',port:null};
   const group=state.capabilities?.groups?.dropbear_lan;
   const parameters=group?.parameters||{};
   const value=key=>parameters['uci.dropbear.dropbear.@lan.'+key]?.value;
@@ -35,6 +36,7 @@ function render(state){
     const saved=state.settings;const active=document.querySelector('input[name=mode][value="'+saved.mode+'"]');if(active)active.checked=true;
     const fields={iface:'iface',mac:'mac',vlan:'vlan',duration:'duration',management_ip:'management-ip',local_ip:'local-ip',peer_ip:'peer-ip',acs_ip:'acs-ip'};
     for(const [key,id] of Object.entries(fields)){if(saved[key]!==undefined && (key!=='iface'||Array.from($(id).options).some(o=>o.value===saved[key])))$(id).value=String(saved[key]);}
+    $('root-enable-lan-ssh').checked=saved.root_enable_lan_ssh===true;
     topology();
   }
   renderDiscovery(state.discovery);
@@ -54,7 +56,7 @@ function render(state){
   $('run-id').textContent=state.runId?`OTURUM ${state.runId} · ${{write:'YAZMA / GERİ ALMA',configure:'YAPILANDIRMA',root_password:'ROOT PAROLASI',readonly:'SALT OKUNUR',log_upload:'LOG AKTARIMI',sts_probe:'STS TESTİ'}[state.settings.mode]}`:'Henüz oturum yok';
   $('router-confirmed').textContent=state.routerConfirmed?'WAN bağlantısı doğrulandı.':'Hedef router: PPPoE bağlantısı bekleniyor.';
   const seconds=state.elapsed||0;$('elapsed').textContent=`${Math.floor(seconds/60).toString().padStart(2,'0')}:${(seconds%60).toString().padStart(2,'0')}`;
-  document.querySelectorAll('[data-step]').forEach(node=>{const status=state.steps[node.dataset.step];node.className=status;node.querySelector('i').textContent=status==='done'?'✓':status==='skipped'?'-':String(['link','inform','methods','names','read','write','restore'].indexOf(node.dataset.step)+1);});
+  const phase=operationProgress(state,document.querySelector('input[name=mode]:checked').value);document.querySelectorAll('[data-step]').forEach(node=>{const key=node.dataset.step;node.hidden=!phase.order.includes(key);const status=state.outcome==='success'?'done':state.steps[key];node.className=status;node.querySelector('i').textContent=status==='done'?'✓':String(phase.order.indexOf(key)+1);node.querySelector('span').textContent=phase.names[key];});
   $('readiness').hidden=!state.readiness.length;$('readiness').textContent=state.readiness.join(' ');
   $('network-recover').hidden=!state.networkRecovery;$('network-recover').disabled=state.running||discovering;
   const result=$('result');result.hidden=!!state.finishing||!['success','incomplete','failed','needs_restore','restored_only','stopped','password_check_required'].includes(state.outcome);
@@ -95,6 +97,7 @@ function updateMode(){const mode=document.querySelector('input[name=mode]:checke
   $('set-password').setAttribute('aria-expanded',String(password));
   for(const id of ['cli-password','cli-confirm']){$(id).required=password;$(id).disabled=!password||!!lastState?.running||discovering;}
   for(const id of ['root-password','root-password-confirm']){$(id).required=rootPassword;$(id).disabled=!rootPassword||!!lastState?.running||discovering;}
+  $('root-enable-lan-ssh').disabled=!rootPassword||busy;
   $('root-password-ack').required=rootPassword;$('root-password-ack').disabled=!rootPassword||!!lastState?.running||discovering;
   if(!lastState?.running)$('start').firstChild.textContent=lastState?.pending?'Geri almayı tamamla ':config?'Seçilen ayarları uygula ':rootPassword?'Root parolasını değiştir ':document.querySelector('input[name=mode]:checked').value==='readonly'?'Salt okunur keşfi başlat ':document.querySelector('input[name=mode]:checked').value==='sts_probe'?'STS testini başlat ':document.querySelector('input[name=mode]:checked').value==='log_upload'?'Log aktarımını başlat ':'Yazma / geri alma testini başlat ';
   updateSelectionSummary();
@@ -103,35 +106,41 @@ function updateMode(){const mode=document.querySelector('input[name=mode]:checke
 document.querySelectorAll('input[name=mode]').forEach(node=>node.addEventListener('change',updateMode));
 $('form').addEventListener('submit',async event=>{event.preventDefault();error('');$('start').disabled=true;try{const settings={mode:document.querySelector('input[name=mode]:checked').value,iface:$('iface').value,mac:$('mac').value.trim(),vlan:Number($('vlan').value),duration:Number($('duration').value),management_ip:$('management-ip').value.trim(),local_ip:$('local-ip').value.trim(),peer_ip:$('peer-ip').value.trim(),acs_ip:$('acs-ip').value.trim()};
   if(settings.mode==='configure'){const ssh=$('set-ssh').checked;const sshExtras=ssh&&$('ssh-action').value==='enable';settings.web_admin_role=$('set-admin-role').checked?'engineer':'keep';settings.target=Number($('target').value);settings.ssh_action=ssh?$('ssh-action').value:'keep';settings.persistence=sshExtras&&$('set-persistence').checked?$('persistence').value:'keep';if(sshExtras&&$('set-password').checked){if($('cli-password').value!==$('cli-confirm').value)throw Error('CLI parolaları eşleşmiyor.');settings.cli_password=$('cli-password').value;}}
-  if(settings.mode==='root_password'){if($('root-password').value!==$('root-password-confirm').value)throw Error('Root parolaları eşleşmiyor.');settings.root_password=$('root-password').value;settings.root_password_confirm=$('root-password-confirm').value;settings.root_password_ack=$('root-password-ack').checked;}
+  if(settings.mode==='root_password'){if($('root-password').value!==$('root-password-confirm').value)throw Error('Root parolaları eşleşmiyor.');settings.root_password=$('root-password').value;settings.root_password_confirm=$('root-password-confirm').value;settings.root_password_ack=$('root-password-ack').checked;settings.root_enable_lan_ssh=$('root-enable-lan-ssh').checked;}
   render(await api('/api/start',settings));}catch(e){error(e.message);$('start').disabled=!!lastState?.readiness.length;}finally{$('root-password').value='';$('root-password-confirm').value='';$('cli-password').value='';$('cli-confirm').value='';}});
 $('network-recover').addEventListener('click',async()=>{error('');$('network-recover').disabled=true;try{render(await api('/api/network/recover',{}));}catch(e){error(e.message);$('network-recover').disabled=false;}});
 $('stop').addEventListener('click',async()=>{error('');try{render(await api('/api/stop',{}));}catch(e){error(e.message);}});
 $('report').addEventListener('click',async()=>{try{const r=await fetch('/api/report',{headers:{'X-Local-Token':token}});if(!r.ok)throw Error('Rapor alınamadı.');const url=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=url;a.download='acs-test-report.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){error(e.message);}});
 async function poll(){if(polling||!booted)return;polling=true;try{render(await api('/api/events?after='+cursor));}catch(e){error('Sunucuya ulaşılamadı. Terminal açık olsun.');}finally{polling=false;}}
 async function boot(){try{const r=await fetch('/api/bootstrap');if(!r.ok)throw Error();const b=await r.json();token=b.token;$('host-system').textContent=b.host?b.host.name+(b.host.liveTestPending?' · deneysel':''):'macOS / Linux / Windows';$('iface').replaceChildren();if(b.interfaces.length){for(const entry of b.interfaces){const option=document.createElement('option');option.value=entry.id;option.textContent=entry.displayName||`${entry.id} · ${entry.name}`;$('iface').append(option);}if(b.interfaces.some(i=>i.id==='en11'))$('iface').value='en11';}else{const option=document.createElement('option');option.value='';option.textContent='Fiziksel Ethernet adaptörü bulunamadı';$('iface').append(option);}booted=true;render(b.state);setInterval(poll,1000);}catch(e){error('Sunucu bağlantısı kurulamadı. Sayfayı yenile.');$('start').disabled=true;}}
-for(const id of ['set-admin-role','set-ssh','set-persistence','set-password','target','ssh-action','persistence','root-password-ack'])$(id).addEventListener('change',updateMode);
+for(const id of ['set-admin-role','set-ssh','set-persistence','set-password','target','ssh-action','persistence','root-password-ack','root-enable-lan-ssh'])$(id).addEventListener('change',updateMode);
 function topology(){const text=$('topology-addresses');text.replaceChildren(document.createTextNode('SSH yönetimi: Wi-Fi / LAN · '+$('management-ip').value),document.createElement('br'),document.createTextNode('Test PPP ağı: '+$('local-ip').value+' ↔ '+$('peer-ip').value));}
 for(const id of ['management-ip','local-ip','peer-ip'])$(id).addEventListener('input',topology);
 $('iface').addEventListener('change',()=>{discoveryResults=[];$('discovery-results').hidden=true;$('discovery-status').textContent='Yeni adaptör için keşfi tekrar çalıştır.';$('interface-result').textContent='Yeni adaptör seçildi. Bağlantı durumunu kontrol et.';});
 $('check-interface').addEventListener('click',async()=>{error('');$('check-interface').disabled=true;try{const data=await api('/api/interface?name='+encodeURIComponent($('iface').value));$('interface-result').textContent=`${data.label||data.iface} · ${data.active?'Fiziksel bağlantı aktif':'Fiziksel bağlantı pasif'} · ${data.mac}. ${data.note}`;}catch(e){error(e.message);}finally{$('check-interface').disabled=false;}});
 updateMode();boot();
 
+function operationProgress(state,selectedMode='readonly'){
+  const mode=state.settings?.mode||selectedMode;
+  const orders={readonly:['link','inform','methods','names','read'],log_upload:['link','inform','methods','read','write'],root_password:['link','inform','methods','write'],configure:['link','inform','methods','names','read','write']};
+  const order=orders[mode]||['link','inform','methods','names','read','write','restore'];
+  const names={link:'PPPoE / IP',inform:'Cihaz bildirimi',methods:'Desteklenen işlemler',names:'Alanlar',read:'Okuma',write:mode==='log_upload'?'Log aktarımı':mode==='root_password'?'Parola aktarımı':'Yazma',restore:'Geri alma'};
+  const done=state.outcome==='success'?order.length:order.filter(step=>state.steps?.[step]==='done').length;
+  const titles={readonly:'Salt okunur keşif tamamlandı',log_upload:'Standart log aktarımı başarılı',write:'Yazma ve geri alma başarılı',sts_probe:'STS testi ve geri alma başarılı',configure:'Seçilen ayarlar doğrulandı'};
+  return {mode,order,names,done,successTitle:titles[mode]||'İşlem tamamlandı'};
+}
 function renderProgress(state){
-  const mode=state.settings?.mode||document.querySelector('input[name=mode]:checked').value;
-  const order=mode==='readonly'?['link','inform','methods','names','read']:['link','inform','methods','names','read','write','restore'];
-  const names={link:'PPPoE / IP bağlantısı',inform:'Router bildirimi',methods:'ACS yöntem sorgusu',names:'Router ayar listesi',read:'Salt okunur değerler',write:'Seçilen işlem',restore:'Geri alma'};
-  const done=order.filter(step=>state.steps?.[step]==='done').length;
+  const {mode,order,names,done,successTitle}=operationProgress(state,document.querySelector('input[name=mode]:checked').value);
   $('progress').max=order.length;$('progress').value=done;
   if(state.finishing){$('progress-title').textContent='Ağ oturumu kapatılıyor';$('progress-detail').textContent='İşlem sona erdi. Geçici ağ ayarı geri alınıyor; ardından yeni bir test başlatabilirsin.';return;}
   if(!state.runId){$('progress-title').textContent='Hazır';$('progress-detail').textContent='Test başlayınca ilerleme ve mevcut aşama burada görünür.';return;}
-  if(mode==='readonly'&&state.outcome==='success'){$('progress-title').textContent='Salt okunur keşif tamamlandı';$('progress-detail').textContent='ACS okumaları bitti; ağ oturumu otomatik durduruldu.';return;}
+  if(state.outcome==='success'){$('progress-title').textContent=successTitle;$('progress-detail').textContent=mode==='log_upload'?`Dosya alındı (${state.uploadProbe?.bytes||0} bayt), aktarım doğrulandı ve ağ oturumu kapatıldı.`:'İşlem doğrulandı, ağ oturumu kapatıldı. Sonraki işlemi seçebilirsin.';return;}
   if(mode==='readonly'&&state.outcome==='incomplete'){$('progress-title').textContent='Bekleme süresi doldu';$('progress-detail').textContent='Okuma tamamlanamadı. Bağlantıyı kontrol et.';return;}
-  if(!state.running){$('progress-title').textContent=state.outcome==='failed'?'İşlem başarısız':state.outcome==='password_check_required'?'ACS aktarımı bildirildi':'İşlem sona erdi';$('progress-detail').textContent=`Tamamlanan aşamalar: ${done} / ${order.length}. Sonucu ve işlem günlüğünü kontrol et.`;return;}
+  if(!state.running){$('progress-title').textContent=state.outcome==='failed'?'İşlem başarısız':state.outcome==='password_check_required'?'ACS aktarımı tamamlandı; SSH ile doğrula':'İşlem sona erdi';$('progress-detail').textContent=state.outcome==='password_check_required'?'Aktarım tamamlandı ve ağ oturumu kapatıldı. Yeni parolayla giriş yaparak doğrula.':`Tamamlanan aşamalar: ${done} / ${order.length}. Sonucu ve işlem günlüğünü kontrol et.`;return;}
   const active=order.find(step=>state.steps?.[step]==='active')||order.find(step=>state.steps?.[step]==='waiting');
   const number=active?order.indexOf(active)+1:done;
   $('progress-title').textContent=active?`Aşama ${number} / ${order.length} · ${names[active]}`:'İşlem sürüyor';
-  $('progress-detail').textContent=active==='link'?'PPPoE/IP bağlantısı kurulması bekleniyor.':active==='inform'?'Router’ın ACS bildirimi bekleniyor.':active==='methods'?'Router’ın desteklediği ACS işlemleri okunuyor.':active==='names'?'Router’dan sunulan alanlar isteniyor.':active==='read'?'Salt okunur değerler alınıyor.':active==='write'?'Seçilen işlem router’a gönderiliyor.':active==='restore'?'Önceki değer geri yükleniyor ve kontrol ediliyor.':'Yanıt bekleniyor.';
+  $('progress-detail').textContent=active==='link'?'PPPoE/IP bağlantısı kurulması bekleniyor.':active==='inform'?'Router’ın ACS bildirimi bekleniyor.':active==='methods'?'Router’ın desteklediği ACS işlemleri okunuyor.':active==='names'?'Router’dan sunulan alanlar isteniyor.':active==='read'?'Salt okunur değerler alınıyor.':active==='write'?(mode==='log_upload'?'Sistem günlüğü aktarılıyor.':'Seçilen işlem router’a gönderiliyor.'):active==='restore'?'Önceki değer geri yükleniyor ve kontrol ediliyor.':'Yanıt bekleniyor.';
 }
 
 function renderDiscovery(data){
@@ -186,7 +195,7 @@ function updateSelectionSummary(){
   if(mode==='log_upload'){$('selection-text').textContent='Sistem günlüğü bu bilgisayara aktarılacak.';return;}
   if(mode==='readonly'){$('selection-text').textContent='Web rolü, SSH ayarları ve ACS desteği okunacak.';return;}
   if(mode==='write'){$('selection-text').textContent='engineer kalıcılık ayarı 1 → 0 → 1 olarak sınanacak.';return;}
-  if(mode==='root_password'){$('selection-text').textContent='Yalnızca root parolası değiştirilecek. SSH hizmeti açılmayacak.';return;}
+  if(mode==='root_password'){$('selection-text').textContent=$('root-enable-lan-ssh').checked?'Root parolası değiştirilecek; LAN SSH ve root parola girişi açılacak. SSH hizmeti yeniden başlatılacak.':'Yalnızca root parolası değiştirilecek. SSH hizmeti açılmayacak.';return;}
   const actions=[];
   const webAction=$('set-admin-role').checked?'Web admin: rol engineer yapılacak. ':'';
   if($('set-ssh').checked)actions.push($('ssh-action').value==='enable'?'LAN SSH hesap izni açılacak':'SSH hesap izni kapatılacak');
@@ -207,7 +216,7 @@ function renderNextActions(state){
   if(mode==='log_upload'){$('next-instructions').textContent='Log alındı. Boyut ve dosya özeti raporda.';return;}
   if(mode==='readonly'){$('next-instructions').textContent='Sonuçları aşağıda incele. İstersen ayarları uygulama moduna geç.';return;}
   if(mode==='write'){$('next-instructions').textContent='Eski değer geri yüklendi. Artık istediğin işlemi seçebilirsin.';return;}
-  if(mode==='root_password'){$('next-instructions').textContent='LAN veya Wi-Fi üzerinden yeni root parolasıyla giriş yap. SSH hizmeti ve root izni açık olmalı.';$('ssh-command').hidden=false;$('ssh-command').textContent=`ssh root@${state.settings.management_ip||'192.168.1.131'}`;$('ssh-guidance').hidden=false;$('ssh-guidance').textContent='Başarılı girişe kadar mevcut oturumu açık tut.';return;}
+  if(mode==='root_password'){$('next-instructions').textContent=state.settings.root_enable_lan_ssh?'Root parolası ve LAN SSH açma isteği gönderildi. LAN veya Wi-Fi üzerinden yeni parolayla giriş yaparak doğrula.':'Yalnızca root parolası için istek gönderildi. SSH kapalıysa bu moddaki LAN SSH seçeneğini işaretleyerek yeniden uygula.';$('ssh-command').hidden=false;$('ssh-command').textContent=`ssh root@${state.settings.management_ip||'192.168.1.1'}`;$('ssh-guidance').hidden=false;$('ssh-guidance').textContent='Başarılı girişe kadar mevcut oturumu açık tut.';return;}
   const settings=state.settings;
   const user=settings.target===1?'engineer':'superuser';
   const webChanged=settings.web_admin_role==='engineer';
