@@ -49,8 +49,24 @@ Linux sistem paketleri ve ayrıntılar: [Teknik kılavuz](GUIDE.md). Windows'ta 
 3. Adaptörü seçip kontrol edin. **WAN cihazını keşfet** ile bulunan cihazı seçin.
 4. Önce **Salt okunur keşif**, ardından **Standart log aktarımı testi** çalıştırın.
 5. Sonucu kontrol edip istediğiniz ayarları seçin. Her değişiklikten sonra cihaz üzerindeki etkisini doğrulayın.
+6. İşlemler tamamlandıktan sonra aynı operatör altyapısında kullanıma devam edecekseniz, WAN/ONT bağlantısını geri takmadan önce router'ın web arayüzünden **CWMP / TR-069'u kapatın**. Operatör ACS'si ayarları yeniden uygulayabilir. CWMP'yi testler bitmeden kapatmayın; Studio bağlantısı için gereklidir.
 
 SSH veya web yönetimi için ayrıca router'ın LAN ya da Wi-Fi ağına bağlı olun. Yönetim IP adresi panelden değiştirilebilir; `192.168.1.131` kullanmak zorunlu değildir. Keşifte paket gelmiyorsa WAN kablosunu çıkarıp tekrar takın.
+
+## Ekran görüntüleri
+
+Görseller arayüz önizlemesidir; canlı cihaz testi sonucu içermez.
+
+![Bağlantı hazırlığı ve oturum paneli](docs/images/overview.png)
+
+<details>
+<summary>Web rolü, SSH hesap izni ve root parola seçenekleri</summary>
+
+![Web admin rolü ve SSH hesap seçenekleri](docs/images/configuration.png)
+
+![Linux root parolası ve SSH izin durumu](docs/images/root-password.png)
+
+</details>
 
 ## Kayıtlar ve kurtarma
 

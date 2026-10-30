@@ -7,6 +7,7 @@
 - Platform etiketi Windows'u kapsayacak şekilde güncellendi.
 - README kısaltıldı; kurulum ve işlem ayrıntıları GUIDE.md, sürüm geçmişi bu dosyaya taşındı.
 - Hedef cihaz, platform doğrulaması, yedekleme ve kullanıcı sorumluluğu açıkça belirtildi.
+- İşlem sonrası aynı operatör altyapısında kullanım için CWMP kapatma notu ve arayüz ekran görüntüleri eklendi.
 
 ## v1.14.1
 

@@ -72,6 +72,10 @@ Linux ve Windows'ta kalan canlı doğrulama sırası: PADI → PPP/IP → ACS bi
 
 Teknik dayanaklar: [pppd upstream kılavuzu](https://github.com/ppp-project/ppp/blob/master/pppd/pppd.8), [Debian pppd 2.4.9 kılavuzu](https://manpages.debian.org/bookworm/ppp/pppd.8.en.html). Linux için kullanılan `ifname`, `logfd` ve `nodefaultroute` seçenekleri bu kılavuzlarda yer alır.
 
+## İşlem sonrası CWMP
+
+Tüm ACS işlemleri ve doğrulamalar tamamlandıktan sonra aynı operatör altyapısında kullanıma devam edecekseniz, WAN/ONT bağlantısını geri takmadan önce router'ın web arayüzünden **CWMP / TR-069'u kapatın**. Operatör ACS'si mevcut ayarları yeniden uygulayabilir. Studio bu seçeneği otomatik kapatmaz. CWMP test sırasında açık kalmalıdır; erken kapatırsanız ACS işlemleri ve geri alma kesilebilir.
+
 ## Bağlantı düzeni
 
 ```text
