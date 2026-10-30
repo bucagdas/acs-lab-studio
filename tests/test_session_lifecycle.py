@@ -253,3 +253,47 @@ class ListenerTests(unittest.TestCase):
             with self.assertRaises(OSError): server.get_request()
         connection.close.assert_called_once()
         server.tls_context.wrap_socket.assert_not_called()
+
+
+class EveryModeTests(unittest.TestCase):
+    def test_each_mode_stops_on_its_own_evidence_without_waiting_for_timeout(self):
+        scenarios=[
+            ('readonly','capabilities.json',{'status':'running'},{'status':'complete'}),
+            ('log_upload','upload-probe.json',{'status':'requested'},{'status':'verified'}),
+            ('configure','configuration-state.json',{'status':'acknowledged'},{'status':'verified'}),
+            ('configure','configuration-state.json',{'status':'acknowledged'},{'status':'password_acknowledged'}),
+            ('sts_probe','sts-probe.json',{'status':'restore_requested'},{'status':'verified'}),
+            ('root_password','root-password-transfer.json',{'status':'waiting_transfer','served':True},{'status':'transfer_reported','served':True}),
+            ('write','write_probe_state.json',{'status':'pending'},{'status':'restored','toggle_verified':True}),
+        ]
+        for mode,name,pending,done in scenarios:
+            with self.subTest(mode=mode,result=done),tempfile.TemporaryDirectory() as folder:
+                run=Path(folder);stop=threading.Event();responses=[]
+                class Handler:
+                    server=types.SimpleNamespace(state=types.SimpleNamespace(stage='testing'))
+                    def _send(self,code):responses.append((code,stop.is_set()))
+                engine=types.SimpleNamespace(ACSHandler=Handler)
+                install_completion(engine,mode,run,run,stop)
+                h=Handler();report=run/name
+                report.write_text(json.dumps(pending));h._send(200)
+                self.assertFalse(stop.is_set())
+                report.write_text(json.dumps(done));h._send(204)
+                self.assertEqual(responses[-1],(204,False))
+                self.assertTrue(stop.is_set())
+
+    def test_root_download_status_zero_finishes_without_an_extra_transfer_rpc(self):
+        import ast
+        import xml.etree.ElementTree as ET
+        source=Path(__file__).resolve().parents[1]/'root_password.py'
+        tree=ast.parse(source.read_text())
+        method=next(n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name=='_handle_extra_rpc')
+        results=[];report={'served':True}
+        ns={'report':report,'save':lambda **kw:results.append(kw),'engine':types.SimpleNamespace(_find_text=lambda root,name:root.findtext(name))}
+        cls=ast.ClassDef(name='Handler',bases=[],keywords=[],body=[method],decorator_list=[])
+        exec(compile(ast.fix_missing_locations(ast.Module(body=[cls],type_ignores=[])),str(source),'exec'),ns)
+        h=ns['Handler']();h.server=types.SimpleNamespace(state=types.SimpleNamespace(stage='root_password_response',pending_id='match'))
+        sent=[];h._send=lambda status:sent.append(status)
+        h.fail=lambda message:self.fail(message)
+        self.assertTrue(h._handle_extra_rpc('DownloadResponse','match',ET.fromstring('<r><Status>0</Status></r>')))
+        self.assertEqual(results[-1],{'status':'transfer_reported','downloadStatus':'0'})
+        self.assertEqual(sent,[204])

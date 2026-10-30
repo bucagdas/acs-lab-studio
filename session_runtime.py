@@ -15,7 +15,13 @@ def terminal_result(mode, run, state_dir):
         status = report.get('status')
         if mode == 'root_password':
             return status == 'failed' or (status == 'transfer_reported' and report.get('served') is True)
-        return status in {'complete', 'verified', 'password_acknowledged', 'failed', 'unverified', 'unsupported'}
+        completed = {
+            'readonly': {'complete', 'failed', 'unsupported'},
+            'log_upload': {'verified', 'failed'},
+            'configure': {'verified', 'password_acknowledged', 'unverified'},
+            'sts_probe': {'verified', 'failed'},
+        }
+        return status in completed.get(mode, set())
     except (OSError, ValueError, KeyError):
         return False
 

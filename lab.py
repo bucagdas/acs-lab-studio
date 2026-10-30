@@ -370,6 +370,8 @@ class Lab:
                 self.error='STS testi doğrulanamadı; geri alma durumunu kontrol edin.'
             if '[lab] LOG_UPLOAD_VERIFIED' in line and self.read_upload_probe().get('status')=='verified':
                 self.outcome='success';self.worker_marker=True
+            if '[write-test] WRITE_TEST_REFUSED' in line:
+                self.outcome='failed';self.error='Başlangıç ayarları uygun değil; test yazma yapmadan durdu.'
             if '[lab] LOG_UPLOAD_FAILED' in line:
                 self.outcome='failed';self.error='Standart log aktarımı doğrulanamadı.'
             if '[root-password] ROOT_PASSWORD_TRANSFER_REPORTED' in line:

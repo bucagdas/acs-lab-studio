@@ -64,7 +64,7 @@ python3 app.py --preview
 
 ## Platform doğrulaması
 
-Mac üzerinde 91 Python testi ve 6 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
+Mac üzerinde 93 Python testi ve 6 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
 
 Windows testleri; ikili kanalda parçalı okuma/yazma, yalnızca PPPoE aktarımı, USB/dahili kart listesi, kart seçim izinleri, kaynak MAC denetimi, bırakma/kapanış, WSL sanal NAT adaptörünün dışlanması ve güncellemede kurtarma kayıtlarının korunmasını kapsar. Bunlar taklit sürücü yanıtları ve yerel alt süreçlerle sınanır; gerçek Windows/Npcap testi değildir.
 
@@ -88,6 +88,17 @@ Operatörün ONT bağlantısı test sırasında WAN'dan ayrılmış olmalı. Ara
 Başlatma; tek hedef MAC için PPPoE yanıtlayıcısı, DNS/NTP ve test ACS servisleri açar. macOS'ta ACS/DNS/NTP dinleyicileri mevcut davranışla tüm IPv4 arayüzlerinde, Linux'ta yalnızca test IP adreslerinde dinler. Aracı izole laboratuvarda çalıştırın. Web kontrol paneli yalnızca `127.0.0.1` üzerinde dinler. Test sırasında internet hizmeti sağlanmaz. Güvenlik duvarı ayarı otomatik değiştirilmez.
 
 Başka bir test betiği çalışıyorsa önce onu durdurun. Test dinleyici adreslerinde kullanımda olan 53/80/123/443 portları yeni testin başlamasını engeller. Araç ilgisiz pppd süreçlerini sonlandırmaz.
+
+## Testlerin bitiş koşulları
+
+Sonuç alındığında işlem biter; ek trafik veya bekleme süresinin dolması beklenmez. Son RPC yanıtı gönderilir, geçici ağ ayarı geri alınır ve yeni işlem açılır.
+
+- Salt okunur keşif: gerekli sorgular tamamlandığında.
+- Log aktarımı: dosya alındığında ve cihaz aktarımı tamamladığını bildirdiğinde.
+- Yazma / geri alma ve STS testi: değişen değer okunup eski değer geri yüklendiğinde ve doğrulandığında.
+- Seçilen ayarlar: seçilen değerler yazılıp tekrar okunduğunda. Parola geri okunamadığı için kabul edilen istek sonrasında ayrıca SSH ile doğrulama istenir.
+- Root parolası: dosya aktarımı tamamlandığında. Yeni parolayla SSH girişi ayrıca kullanıcı tarafından doğrulanır; ACS oturumu bunu beklemez.
+- İşlem reddedildiğinde: başarısız sonuç gösterilir ve oturum kapanır. Bekleyen cihaz geri alma kaydı varsa korunur.
 
 ## İşlem ayrıntıları
 

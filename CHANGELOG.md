@@ -1,5 +1,12 @@
 # Sürüm geçmişi
 
+## v1.16.1
+
+- Her çalışma modunun bitiş koşulu ayrı tanımlandı ve doğrulandı.
+- Root parola aktarımı doğrudan tamamlandığında ek TransferComplete bildirimi beklenmez.
+- Başlangıç koşulları uygun olmayan yazma testi, yazma yapmadan başarısız sonuçla kapanır.
+- Süre ayarının yalnızca bekleme üst sınırı olduğu arayüzde açıklandı.
+
 ## v1.16
 
 - İşlem tamamlandığında ağ oturumu son RPC yanıtından sonra otomatik kapanır; paket trafiğinin durması beklenmez.

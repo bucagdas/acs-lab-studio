@@ -91,9 +91,14 @@ def install(engine, settings, run, peer_ip, local_ip, port=8778):
                 if status not in ('0', '1'):
                     self.fail('Geçersiz Download durumu')
                     return True
+                if status == '0' and not report['served']:
+                    self.fail('Cihaz dosyayı almadan tamamlandı bildirdi')
+                    return True
                 save(status='waiting_transfer' if status == '1' else 'transfer_reported',
                      downloadStatus=status)
                 state.stage = 'root_password_pending'
+                if status == '0':
+                    print('[root-password] ROOT_PASSWORD_TRANSFER_REPORTED: SSH ile doğrulama gerekli', flush=True)
                 self._send(204)
                 return True
             if rpc_name == 'TransferComplete':
