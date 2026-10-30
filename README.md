@@ -29,7 +29,7 @@ USB veya dahili Ethernet seçilebilir. Linux ve Windows'ta kart/sürücü uyumlu
 - Salt okunur keşif, sistem günlüğü aktarımı ve yazma/geri alma testleri sunar.
 - Mevcut web admin hesabına engineer rolü verir.
 - engineer ve superuser CLI hesaplarının LAN SSH izinlerini, kalıcılığını ve parolasını düzenler.
-- Uyumlu firmware'de Linux root parolasını ACS üzerinden değiştirmeyi dener. Bu işlem THENC anahtarı veya WPS düğmesi gerektirmez.
+- Uyumlu firmware'de Linux root parolasını ACS üzerinden değiştirmeyi dener.
 
 **Web admin rolü, CLI hesabı ve Linux root hesabı ayrı işlemlerdir.** CLI hesap izni veya root parolası değiştirmek SSH hizmetini kendiliğinden açmaz. Root SSH için hizmet ve root giriş izinleri ayrıca açık olmalıdır. Parola değişikliğini yeni bir SSH bağlantısıyla doğrulayın; o zamana kadar mevcut yönetim oturumunu açık tutun.
 

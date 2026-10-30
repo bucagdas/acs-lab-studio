@@ -118,7 +118,7 @@ Salt okunur keşif, ACS sunuyorsa LAN Dropbear etkinlik, port ve parola giriş i
 
 ### Linux root parolasını ACS ile değiştirme
 
-**Linux root parolasını değiştir** ayrı çalışma modudur. Yeni parolayı iki kez girin ve onay kutusunu işaretleyin. Uygulama, bu firmware’de laboratuvar cihazında denenmiş STS Vendor Configuration aktarımını hedef WAN MAC’i doğrulandıktan sonra başlatır. THENC imzalama anahtarı veya WPS düğmesi kullanılmaz. Bu, stok cihazlarda veya başka firmware sürümlerinde çalışacağına dair garanti değildir.
+**Linux root parolasını değiştir** ayrı çalışma modudur. Yeni parolayı iki kez girin ve onay kutusunu işaretleyin. Uygulama, bu firmware’de laboratuvar cihazında denenmiş STS Vendor Configuration aktarımını hedef WAN MAC’i doğrulandıktan sonra başlatır. Bu, stok cihazlarda veya başka firmware sürümlerinde çalışacağına dair garanti değildir.
 
 Parola 12–64 karakter olmalı ve yalnızca harf, rakam, `_ . @ + -` içermelidir. Web arayüzü parola alanlarını istekten sonra temizler; ACS Lab parola içeriğini oturum durumuna, rapora veya uygulama günlüğüne eklemez. Aktarım hatası durumunda sonucu başarısız gösterir. `TransferComplete FaultCode=0` geldiğinde yalnızca **SSH ile doğrulama bekleniyor** gösterir; bunu parola değişti diye raporlamaz.
 
