@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 import types
 from lab import validate_settings
-from root_password import build_payload, install
+from root_password import build_payload, install, validate_sts_layout
 import test_configure
 
 
@@ -25,10 +25,10 @@ class RootAccessTests(unittest.TestCase):
 
     def test_lan_option_targets_only_the_existing_lan_section(self):
         body=build_payload(self.settings(True)).decode()
-        for option in ['enable=1','RootLogin=1','RootPasswordAuth=on','PasswordAuth=on']:
+        for option in ['enable=1','RootLogin=1','RootPasswordAuth=1','PasswordAuth=1']:
             self.assertIn('dropbear.lan.'+option,body)
-        self.assertIn('dropbear.lan.Interface|grep${IFS}-qx${IFS}lan',body)
-        self.assertIn('/etc/init.d/dropbear${IFS}restart',body)
+        self.assertIn('set dropbear.lan.Interface=lan',body)
+        self.assertIn('/etc/init.d/dropbear restart',body)
         self.assertNotIn('dropbear.wan',body)
         self.assertNotIn('dropbear.public_lan',body)
 
@@ -41,31 +41,40 @@ class RootAccessTests(unittest.TestCase):
         for bad in ['safe;touch /tmp/x', 'safe$(id)123456', 'line\nbreak123456']:
             with self.assertRaises(ValueError):build_payload({'root_password':bad,'root_enable_lan_ssh':True})
 
-    def test_fixed_script_executes_against_stub_services_without_touching_host_network(self):
-        for lan in ['lan','wan']:
-            with self.subTest(interface=lan),tempfile.TemporaryDirectory() as folder:
-                root=Path(folder);log=root/'calls'
-                scripts={
-                    'chpasswd':'#!/bin/sh\nread -r entry\n[ "$entry" = root:LocalTest_pass123 ]\n',
-                    'uci':'#!/bin/sh\necho "uci $*" >> "$CALLS"\ncase "$*" in "-q get dropbear.lan") echo dropbear;; "-q get dropbear.lan.Interface") echo "$LAN_INTERFACE";; esac\n',
-                    'logger':'#!/bin/sh\necho "logger $*" >> "$CALLS"\n',
-                    'dropbear':'#!/bin/sh\necho "dropbear $*" >> "$CALLS"\n',
-                }
-                for name,body in scripts.items():
-                    p=root/name;p.write_text(body);p.chmod(0o700)
-                body=build_payload(self.settings(True)).decode().split('/etc/init.d/x;',1)[1]
-                body=body.replace('/etc/init.d/dropbear',str(root/'dropbear'))
-                env={**os.environ,'PATH':str(root)+':/usr/bin:/bin','CALLS':str(log),'LAN_INTERFACE':lan}
-                subprocess.run(['/bin/sh','-c',body],env=env,check=True,timeout=3,capture_output=True)
-                transcript=log.read_text()
-                if lan=='lan':
-                    self.assertIn('uci set dropbear.lan.enable=1',transcript)
-                    self.assertIn('dropbear restart',transcript)
-                    self.assertIn('ROOT_ACCESS_REQUEST_OK',transcript)
-                else:
-                    self.assertNotIn('uci set',transcript)
-                    self.assertNotIn('dropbear restart',transcript)
-                    self.assertIn('SETUP_FAIL',transcript)
+    def test_old_nested_service_path_is_rejected_before_any_transfer(self):
+        old=b'reboot off\n/etc/init.d/x;echo${IFS}root:fixture|chpasswd&&/etc/init.d/dropbear${IFS}restart\n'
+        with self.assertRaises(ValueError):validate_sts_layout(old)
+        for enabled in [False,True]:
+            body=build_payload(self.settings(enabled))
+            self.assertEqual(validate_sts_layout(body),body)
+        with self.assertRaises(ValueError):validate_sts_layout(b'/etc/init.d/dropbear arbitrary-action\n')
+
+    def test_native_sts_services_execute_against_stubs_without_touching_host_network(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);log=root/'calls'
+            scripts={
+                'chpasswd':'#!/bin/sh\nread -r entry\n[ "$entry" = root:LocalTest_pass123 ]\n',
+                'uci':'#!/bin/sh\necho "uci $*" >> "$CALLS"\n',
+                'logger':'#!/bin/sh\necho "logger $*" >> "$CALLS"\n',
+                'dropbear':'#!/bin/sh\necho "dropbear $*" >> "$CALLS"\n',
+            }
+            for name,body in scripts.items():
+                p=root/name;p.write_text(body);p.chmod(0o700)
+            settings=[];services=[]
+            for line in build_payload(self.settings(True)).decode().splitlines():
+                if line.startswith('set '):settings.append('uci '+line)
+                elif line.startswith('/etc/init.d/x;'):services.append(line.split(';',1)[1])
+                elif line.startswith('/etc/init.d/dropbear '):services.append(line.replace('/etc/init.d/dropbear',str(root/'dropbear')))
+            # STS commits native configuration before executing queued services.
+            body='\n'.join(settings+['uci commit dropbear']+services)
+            env={**os.environ,'PATH':str(root)+':/usr/bin:/bin','CALLS':str(log)}
+            subprocess.run(['/bin/sh','-c',body],env=env,check=True,timeout=3,capture_output=True)
+            transcript=log.read_text()
+            self.assertIn('uci set dropbear.lan.enable=1',transcript)
+            self.assertIn('dropbear restart',transcript)
+            self.assertIn('CHPASS_OK',transcript)
+            self.assertLess(transcript.index('uci commit dropbear'),transcript.index('CHPASS_OK'))
+            self.assertLess(transcript.index('CHPASS_OK'),transcript.index('dropbear restart'))
 
     def test_report_records_request_but_never_claims_ssh_is_open(self):
         fixture=test_configure.ConfigureTests();fixture.setUp()

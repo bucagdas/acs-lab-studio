@@ -92,6 +92,19 @@ def public_line(line):
     # Omit packet dumps, PAP/CHAP credentials, raw SOAP and authentication data.
     if not re.match(r'^\[(?:acs(?::\d+)?|cwmp|write-test|config|sts|root-password|ppp|pppoe|dns|ntp|lab|\*)\]', line):
         return None
+    if line.startswith('[root-password]'):
+        # Do not hide status just because the category contains 'password'.
+        # Never forward arbitrary payload/debug text from this category.
+        if 'ROOT_PASSWORD_TRANSFER_FAILED' in line:
+            code=re.search(r'kod=(\d{4})',line)
+            return '[lab] Root ayarları aktarımı başarısız.' + (' Cihaz hata kodu: '+code.group(1) if code else '')
+        if 'ROOT_PASSWORD_TRANSFER_REPORTED' in line:
+            return '[lab] Root ayarları aktarımı tamamlandı; SSH ile doğrula.'
+        if 'ROOT_PASSWORD_DOWNLOAD_SENT' in line:
+            return '[lab] Root ayarları aktarımı istendi.'
+        if line=='[root-password] STS dosyası hedef routera gönderildi':
+            return '[lab] Root ayar dosyası hedef cihaza gönderildi.'
+        return None
     if any(word in line.lower() for word in ('password', 'authorization', 'cookie', '<?xml', '<soap', 'pap auth', 'chap auth')):
         return None
     if line.startswith(('[dns]', '[ntp]')) and not any(word in line.lower() for word in ('listening', 'failed')):
@@ -379,7 +392,7 @@ class Lab:
             if '[root-password] ROOT_PASSWORD_TRANSFER_REPORTED' in line:
                 self.steps['write']='done';self.outcome='password_check_required';self.worker_marker=True
             if '[root-password] ROOT_PASSWORD_TRANSFER_FAILED' in line:
-                self.outcome='failed';self.error='Root parola dosyası aktarımı doğrulanmadı.'
+                self.outcome='failed';self.error=self.read_root_password_transfer().get('error') or 'Root parola aktarımı doğrulanmadı; aktarım hata kodunu kontrol edin.'
             if '[config] CONFIG_APPLIED_VERIFIED' in line:
                 if self.read_configuration().get('status')=='verified':
                     self.steps['write']='done';self.outcome='success';self.worker_marker=True

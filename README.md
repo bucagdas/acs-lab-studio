@@ -1,6 +1,6 @@
 # ACS Lab Studio
 
-**Vantiva EGA225CTRN3 / GENT-R** için yerel PPPoE ve TR-069 (ACS) test ve yapılandırma aracı. Bilgisayarın Ethernet bağlantısı üzerinden çalışır. Güncel sürüm: **v1.17**.
+**Vantiva EGA225CTRN3 / GENT-R** için yerel PPPoE ve TR-069 (ACS) test ve yapılandırma aracı. Bilgisayarın Ethernet bağlantısı üzerinden çalışır. Güncel sürüm: **v1.17.1**.
 
 ## Başlamadan önce
 
@@ -37,7 +37,7 @@ Her işlem, istenen sonuç doğrulanınca ağ oturumunu kapatır. Süre ayarı y
 
 ## Kurulum ve kullanım
 
-1. [Son release'i açın](https://github.com/bucagdas/acs-lab-studio/releases/latest) ve **Assets** bölümünden `acs-lab-studio-v1.17.zip` dosyasını indirin.
+1. [Son release'i açın](https://github.com/bucagdas/acs-lab-studio/releases/latest) ve **Assets** bölümünden `acs-lab-studio-v1.17.1.zip` dosyasını indirin.
 2. ZIP'i çıkarın. Güncellemede Studio'yu kapatıp dosyaları mevcut klasöre yazın; `.runs/` ve `.state/` klasörlerini koruyun. Ardından sisteminize uygun başlatıcıyı açın.
 
 macOS ve Linux için Python 3.9+, Scapy, pppd ve OpenSSL gerekir. Linux'ta ayrıca iproute2 ve çekirdek PPP desteği gerekir. Başlatıcı ağ işlemleri için yönetici yetkisi ister.

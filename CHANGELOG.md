@@ -1,5 +1,12 @@
 # Sürüm geçmişi
 
+## v1.17.1
+
+- Root + LAN SSH dosyasında STS ayrıştırıcısının reddettiği iç içe servis yolları kaldırıldı. LAN ayarları ve servis işlemleri ayrı yerel STS satırlarıyla oluşturulur.
+- Root aktarımının hata kodu ve açıklaması panelde ve işlem günlüğünde görünür hale getirildi.
+- Dosyanın gönderildiği bilgisi, HTTP gövdesi tamamen yazıldıktan sonra kaydedilir.
+- v1.17 dosyasının reddi ve düzeltmenin kabulü, gerçek firmware ayrıştırıcısıyla Lua 5.1 üzerinde yerelde yeniden üretildi; UCI ve servisler taklit edildi.
+
 ## v1.17
 
 - LAN yönetim IP adresinin manuel olduğu açıklandı; varsayılan değer 192.168.1.1 yapıldı.

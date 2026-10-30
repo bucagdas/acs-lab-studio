@@ -7,6 +7,20 @@ from http.server import BaseHTTPRequestHandler
 from host_network import LabHTTPServer as ThreadingHTTPServer, service_address
 
 
+def validate_sts_layout(payload):
+    actions = {'enable', 'restart'}
+    for line in payload.decode('ascii').splitlines():
+        if line == 'reboot off':
+            continue
+        if re.fullmatch(r'set dropbear\.lan\.(?:Interface=lan|enable=1|RootLogin=1|RootPasswordAuth=1|PasswordAuth=1)', line):
+            continue
+        parts = line.split()
+        if (not parts or not re.fullmatch(r'/etc/init.d/[^/*]+', parts[0]) or
+                len(parts) > 2 or (len(parts) == 2 and parts[1] not in actions)):
+            raise ValueError('Hazırlanan dosya cihazın STS komut biçimine uymuyor.')
+    return payload
+
+
 def build_payload(settings):
     password = settings.get('root_password', '')
     if not isinstance(password, str) or not re.fullmatch(r'[A-Za-z0-9_.@+\-]{12,64}', password):
@@ -14,27 +28,25 @@ def build_payload(settings):
     enable_ssh = settings.get('root_enable_lan_ssh', False)
     if type(enable_ssh) is not bool:
         raise ValueError('LAN SSH seçimi geçersiz.')
-    commands = ['echo${IFS}root:' + password + '|chpasswd']
+    # STS service-name matching forbids any slash after /etc/init.d/.
+    # Keep the proven password operation on one service line; express LAN
+    # configuration and service actions with the firmware's native STS syntax.
+    body = 'echo${IFS}root:' + password + '|chpasswd'
+    body += '&&logger${IFS}-t${IFS}ACS_ROOT_PASS_TEST${IFS}CHPASS_OK'
+    body += '||logger${IFS}-t${IFS}ACS_ROOT_PASS_TEST${IFS}CHPASS_FAIL'
+    lines = ['reboot off']
     if enable_ssh:
-        # Touch only the known LAN section; do not create a broad listener.
-        commands += [
-            'uci${IFS}-q${IFS}get${IFS}dropbear.lan|grep${IFS}-qx${IFS}dropbear',
-            'uci${IFS}-q${IFS}get${IFS}dropbear.lan.Interface|grep${IFS}-qx${IFS}lan',
-            'uci${IFS}set${IFS}dropbear.lan.enable=1',
-            'uci${IFS}set${IFS}dropbear.lan.RootLogin=1',
-            'uci${IFS}set${IFS}dropbear.lan.RootPasswordAuth=on',
-            'uci${IFS}set${IFS}dropbear.lan.PasswordAuth=on',
-            'uci${IFS}commit${IFS}dropbear',
-            '/etc/init.d/dropbear${IFS}enable',
-            '/etc/init.d/dropbear${IFS}restart',
+        lines += [
+            'set dropbear.lan.Interface=lan',
+            'set dropbear.lan.enable=1',
+            'set dropbear.lan.RootLogin=1',
+            'set dropbear.lan.RootPasswordAuth=1',
+            'set dropbear.lan.PasswordAuth=1',
         ]
-    marker = 'ACS_ROOT_ACCESS_TEST' if enable_ssh else 'ACS_ROOT_PASS_TEST'
-    outcome = 'ROOT_ACCESS_REQUEST_OK' if enable_ssh else 'CHPASS_OK'
-    body = '&&'.join(commands)
-    body += '&&logger${IFS}-t${IFS}' + marker + '${IFS}' + outcome
-    failure = 'SETUP_FAIL' if enable_ssh else 'CHPASS_FAIL'
-    body += '||logger${IFS}-t${IFS}' + marker + '${IFS}' + failure
-    return ('reboot off\n/etc/init.d/x;' + body + '\n').encode('ascii')
+    lines.append('/etc/init.d/x;' + body)
+    if enable_ssh:
+        lines += ['/etc/init.d/dropbear enable', '/etc/init.d/dropbear restart']
+    return validate_sts_layout(('\n'.join(lines) + '\n').encode('ascii'))
 
 
 def install(engine, settings, run, peer_ip, local_ip, port=8778):
@@ -62,12 +74,12 @@ def install(engine, settings, run, peer_ip, local_ip, port=8778):
                 self.send_response(403)
                 self.end_headers()
                 return
-            save(served=True)
             self.send_response(200)
             self.send_header('Content-Length', str(len(payload)))
             self.send_header('Cache-Control', 'no-store')
             self.end_headers()
             self.wfile.write(payload)
+            save(served=True, servedBytes=len(payload))
             print('[root-password] STS dosyası hedef routera gönderildi', flush=True)
 
     server = ThreadingHTTPServer((service_address(local_ip), port), Receiver)
@@ -131,11 +143,12 @@ def install(engine, settings, run, peer_ip, local_ip, port=8778):
                 if key == command:
                     transferred = fault == '0' and report['served']
                     save(status='transfer_reported' if transferred else 'failed',
-                         transferFaultCode=fault)
+                         transferFaultCode=fault,
+                         error='' if transferred else 'Cihaz aktarımı veya config uygulamasını reddetti (kod '+str(fault)+').')
                     if transferred:
                         print('[root-password] ROOT_PASSWORD_TRANSFER_REPORTED: SSH ile doğrulama gerekli', flush=True)
                     else:
-                        print('[root-password] ROOT_PASSWORD_TRANSFER_FAILED: ACS transfer sonucu başarısız', flush=True)
+                        print('[root-password] ROOT_PASSWORD_TRANSFER_FAILED: kod=' + str(fault), flush=True)
                 self._send(200, engine._envelope(state.namespace,
                                                  '<cwmp:TransferCompleteResponse/>', message_id))
                 return True

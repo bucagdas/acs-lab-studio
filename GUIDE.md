@@ -64,7 +64,7 @@ python3 app.py --preview
 
 ## Platform doğrulaması
 
-Mac üzerinde 98 Python testi ve 9 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
+Mac üzerinde 100 Python testi ve 9 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
 
 Windows testleri; ikili kanalda parçalı okuma/yazma, yalnızca PPPoE aktarımı, USB/dahili kart listesi, kart seçim izinleri, kaynak MAC denetimi, bırakma/kapanış, WSL sanal NAT adaptörünün dışlanması ve güncellemede kurtarma kayıtlarının korunmasını kapsar. Bunlar taklit sürücü yanıtları ve yerel alt süreçlerle sınanır; gerçek Windows/Npcap testi değildir.
 
@@ -123,7 +123,7 @@ Bu hesaplar web `admin` ve Linux `root` hesabından ayrıdır. CLI parolası roo
 
 `admin → engineer` yalnızca web arayüzü rolünü değiştirir. Kullanıcı adı admin kalır; admin adlı bir Linux/SSH hesabı oluşturulmaz. SSH listesinde cihazın mevcut engineer ve superuser hesapları bulunur; bu hesaplar sınırlı kabuk kullanır.
 
-**LAN SSH hesap izni** yalnızca seçilen CLI hesabının `Access` ve `Enable` alanlarını değiştirir. Dropbear hizmetini veya root giriş iznini açmaz. **Linux root parolasını değiştir** varsayılan olarak yalnızca parolayı değiştirir. Aynı karttaki **LAN SSH hizmetini ve root parola girişini de aç** seçeneği ayrıca işaretlenirse bilinen `dropbear.lan` bölümü doğrulanır; LAN hizmeti, root girişi ve parola doğrulaması açılır, ayarlar kaydedilir ve SSH yeniden başlatılır. Mevcut SSH bağlantısı kesilebilir. Bölümün LAN arayüzüne ait olduğu doğrulanamazsa SSH ayarları değiştirilmez. Parola daha önce değiştirilmiş olabilir; aktarım sonucu tek başına hizmetin açıldığını kanıtlamaz. Bu yeni seçenek canlı cihaz üzerinde henüz doğrulanmadı.
+**LAN SSH hesap izni** yalnızca seçilen CLI hesabının `Access` ve `Enable` alanlarını değiştirir. Dropbear hizmetini veya root giriş iznini açmaz. **Linux root parolasını değiştir** varsayılan olarak yalnızca parolayı değiştirir. Aynı karttaki **LAN SSH hizmetini ve root parola girişini de aç** seçeneği ayrıca işaretlenirse bilinen `dropbear.lan` bölümü için cihazın yerel STS `set` komutları kullanılır; Interface alanı lan olarak kaydedilir, LAN hizmeti, root girişi ve parola doğrulaması açılır. Firmware ayarları kaydettikten sonra ayrı servis komutlarıyla SSH yeniden başlatılır. Mevcut SSH bağlantısı kesilebilir. Hedef bölüm mevcut değilse veya STS komutları reddedilirse aktarım başarısız olur. Parola daha önce değiştirilmiş olabilir; aktarım sonucu tek başına hizmetin açıldığını kanıtlamaz. Bu yeni seçenek canlı cihaz üzerinde henüz doğrulanmadı.
 
 Salt okunur keşif, ACS sunuyorsa LAN Dropbear etkinlik, port ve parola giriş izinlerini okur. Paneldeki **Ayar açık** hizmetin yapılandırmasını belirtir; çalıştığını veya bağlantının başarılı olacağını kanıtlamaz. Sunulmayan alanlar **bilinmiyor / doğrulanmadı** kalır. Mevcut oturumda okuma yapılmadıysa **henüz okunmadı** gösterilir.
 
@@ -194,3 +194,7 @@ Canlı doğrulama, daha önce root erişimi bulunan laboratuvar cihazında yapı
 
 
 Frontend durum testleri için `node --test tests/test_access_state.cjs` kullanılır. Uygulamayı çalıştırmak için Node gerekmez.
+
+### Root aktarımında 9010 hatası
+
+Dosyanın gönderilmiş olması ayarların uygulandığını göstermez. v1.17 sürümündeki birleşik SSH komutu cihazın STS ayrıştırıcısı tarafından reddedilebiliyordu. v1.17.1, SSH ayarlarını ve servis çağrılarını ayrı STS satırlarıyla oluşturur. Gerçek firmware ayrıştırıcısıyla Lua 5.1 üzerinde yerel uyumluluk kontrolü yapılmıştır; UCI ve servis etkileri bu kontrolde taklit edilmiştir. Canlı cihazdaki sonucu ayrıca doğrulayın.

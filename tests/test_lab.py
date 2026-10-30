@@ -64,6 +64,13 @@ class LabTests(unittest.TestCase):
         self.assertIsNone(public_line('  <soap:Body>secret'))
         self.assertNotIn('CP123',public_line('[acs] Inform from CP123; CWMP namespace=test'))
 
+    def test_root_transfer_failure_is_visible_without_exposing_payload(self):
+        line=public_line('[root-password] ROOT_PASSWORD_TRANSFER_FAILED: kod=9010')
+        self.assertIn('9010',line)
+        self.assertIn('başarısız',line)
+        self.assertIsNone(public_line('[root-password] payload root:private-value'))
+        self.assertIsNone(public_line('[root-password] password=private-value'))
+
     def test_parameter_readbacks_and_cursor(self):
         self.lab.consume("[acs] current value Device.Services.X_000E50_AccessManagement.SSH.CliUsers.1.Username = 'engineer'")
         first=self.lab.snapshot()
