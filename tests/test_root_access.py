@@ -4,12 +4,13 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 import types
 from lab import validate_settings
-from root_password import build_payload, install, validate_sts_layout
+from root_password import build_payload, install, validate_sts_layout, root_shell_service
 import test_configure
 
 
@@ -22,6 +23,7 @@ class RootAccessTests(unittest.TestCase):
         self.assertIn('|chpasswd',body)
         self.assertNotIn('uci',body)
         self.assertNotIn('dropbear',body)
+        self.assertNotIn(root_shell_service(),body)
 
     def test_lan_option_targets_only_the_existing_lan_section(self):
         body=build_payload(self.settings(True)).decode()
@@ -52,11 +54,17 @@ class RootAccessTests(unittest.TestCase):
     def test_native_sts_services_execute_against_stubs_without_touching_host_network(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);log=root/'calls'
+            passwd=root/'passwd'
+            passwd.write_text('root:x:0:0:root:/root:/bin/restricted_shell\nengineer:x:1001:1001:engineer:/home/engineer:/bin/restricted_shell\n')
+            sed_args = "-i ''" if sys.platform == 'darwin' else '-i'
             scripts={
                 'chpasswd':'#!/bin/sh\nread -r entry\n[ "$entry" = root:LocalTest_pass123 ]\n',
                 'uci':'#!/bin/sh\necho "uci $*" >> "$CALLS"\n',
                 'logger':'#!/bin/sh\necho "logger $*" >> "$CALLS"\n',
                 'dropbear':'#!/bin/sh\necho "dropbear $*" >> "$CALLS"\n',
+                # Run real sed/grep against a temporary passwd fixture only.
+                'sed': '#!/bin/sh\n[ "$1" = -i ] && [ "$3" = /etc/passwd ] || exit 90\nexec /usr/bin/sed '+sed_args+' "$2" "$PASSWD_FIXTURE"\n',
+                'grep': '#!/bin/sh\n[ "$1" = -q ] && [ "$3" = /etc/passwd ] || exit 90\nexec /usr/bin/grep "$1" "$2" "$PASSWD_FIXTURE"\n',
             }
             for name,body in scripts.items():
                 p=root/name;p.write_text(body);p.chmod(0o700)
@@ -67,14 +75,25 @@ class RootAccessTests(unittest.TestCase):
                 elif line.startswith('/etc/init.d/dropbear '):services.append(line.replace('/etc/init.d/dropbear',str(root/'dropbear')))
             # STS commits native configuration before executing queued services.
             body='\n'.join(settings+['uci commit dropbear']+services)
-            env={**os.environ,'PATH':str(root)+':/usr/bin:/bin','CALLS':str(log)}
+            env={**os.environ,'PATH':str(root)+':/usr/bin:/bin','CALLS':str(log),'PASSWD_FIXTURE':str(passwd)}
             subprocess.run(['/bin/sh','-c',body],env=env,check=True,timeout=3,capture_output=True)
             transcript=log.read_text()
             self.assertIn('uci set dropbear.lan.enable=1',transcript)
             self.assertIn('dropbear restart',transcript)
             self.assertIn('CHPASS_OK',transcript)
+            self.assertIn('ROOT_SHELL_READY',transcript)
+            self.assertEqual(passwd.read_text(),'root:x:0:0:root:/root:/bin/ash\nengineer:x:1001:1001:engineer:/home/engineer:/bin/restricted_shell\n')
             self.assertLess(transcript.index('uci commit dropbear'),transcript.index('CHPASS_OK'))
             self.assertLess(transcript.index('CHPASS_OK'),transcript.index('dropbear restart'))
+            self.assertLess(transcript.index('ROOT_SHELL_READY'),transcript.index('dropbear restart'))
+            # The shell change is idempotent, and a missing root record must fail.
+            shell_command=root_shell_service().split(';',1)[1]
+            subprocess.run(['/bin/sh','-c',shell_command],env=env,check=True,timeout=3,capture_output=True)
+            passwd.write_text('engineer:x:1001:1001:engineer:/home/engineer:/bin/restricted_shell\n')
+            failed=subprocess.run(['/bin/sh','-c',shell_command],env=env,timeout=3,capture_output=True)
+            self.assertEqual(failed.returncode,1)
+            self.assertIn('ROOT_SHELL_FAILED',log.read_text())
+            self.assertEqual(passwd.read_text(),'engineer:x:1001:1001:engineer:/home/engineer:/bin/restricted_shell\n')
 
     def test_report_records_request_but_never_claims_ssh_is_open(self):
         fixture=test_configure.ConfigureTests();fixture.setUp()

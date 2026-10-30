@@ -123,7 +123,7 @@ Bu hesaplar web `admin` ve Linux `root` hesabından ayrıdır. CLI parolası roo
 
 `admin → engineer` yalnızca web arayüzü rolünü değiştirir. Kullanıcı adı admin kalır; admin adlı bir Linux/SSH hesabı oluşturulmaz. SSH listesinde cihazın mevcut engineer ve superuser hesapları bulunur; bu hesaplar sınırlı kabuk kullanır.
 
-**LAN SSH hesap izni** yalnızca seçilen CLI hesabının `Access` ve `Enable` alanlarını değiştirir. Dropbear hizmetini veya root giriş iznini açmaz. **Linux root parolasını değiştir** varsayılan olarak yalnızca parolayı değiştirir. Aynı karttaki **LAN SSH hizmetini ve root parola girişini de aç** seçeneği ayrıca işaretlenirse bilinen `dropbear.lan` bölümü için cihazın yerel STS `set` komutları kullanılır; Interface alanı lan olarak kaydedilir, LAN hizmeti, root girişi ve parola doğrulaması açılır. Firmware ayarları kaydettikten sonra ayrı servis komutlarıyla SSH yeniden başlatılır. Mevcut SSH bağlantısı kesilebilir. Hedef bölüm mevcut değilse veya STS komutları reddedilirse aktarım başarısız olur. Parola daha önce değiştirilmiş olabilir; aktarım sonucu tek başına hizmetin açıldığını kanıtlamaz. Bu yeni seçenek canlı cihaz üzerinde henüz doğrulanmadı.
+**LAN SSH hesap izni** yalnızca seçilen CLI hesabının `Access` ve `Enable` alanlarını değiştirir. Dropbear hizmetini veya root giriş iznini açmaz. **Linux root parolasını değiştir** varsayılan olarak yalnızca parolayı değiştirir. Aynı karttaki **LAN SSH hizmetini ve root parola girişini de aç** seçeneği ayrıca işaretlenirse bilinen `dropbear.lan` bölümü için cihazın yerel STS `set` komutları kullanılır; Interface alanı lan olarak kaydedilir, LAN hizmeti, root girişi ve parola doğrulaması açılır. Root hesabının oturum shell'i /bin/ash yapılır; engineer ve superuser hesaplarının shell'leri değişmez. Firmware ayarları kaydettikten sonra ayrı servis komutlarıyla SSH yeniden başlatılır. Mevcut SSH bağlantısı kesilebilir. Hedef bölüm mevcut değilse veya STS komutları reddedilirse aktarım başarısız olur. Parola daha önce değiştirilmiş olabilir; aktarım sonucu tek başına hizmetin açıldığını kanıtlamaz. v1.17.2 ile sıfırlanmış laboratuvar cihazında macOS üzerinden root parolası ve SSH terminal erişimi canlı olarak doğrulandı. Linux ve Windows için gerçek donanım doğrulaması bekliyor.
 
 Salt okunur keşif, ACS sunuyorsa LAN Dropbear etkinlik, port ve parola giriş izinlerini okur. Paneldeki **Ayar açık** hizmetin yapılandırmasını belirtir; çalıştığını veya bağlantının başarılı olacağını kanıtlamaz. Sunulmayan alanlar **bilinmiyor / doğrulanmadı** kalır. Mevcut oturumda okuma yapılmadıysa **henüz okunmadı** gösterilir.
 
@@ -190,7 +190,7 @@ python3 -m unittest discover -s tests -v
 
 Kontroller; girdi sınırları, kayıt bozulması, başarı kanıtı, geri alma sırasında durdurmayı engelleme, salt okunur sonuç ve çıktı süzmesini kapsar. Yeni panel gerçek router'da yeniden denenene kadar önceki betiklerin canlı başarısıyla yeni panelin doğrulaması ayrı tutulur.
 
-Canlı doğrulama, daha önce root erişimi bulunan laboratuvar cihazında yapıldı. Bu sonuç, aynı akışın stok cihazda ilk root erişimini sağlayacağını veya farklı firmware sürümlerinde çalışacağını garanti etmez.
+v1.17.2 akışı sıfırlanmış laboratuvar cihazında macOS üzerinden de doğrulandı: root parolası, LAN SSH ve root terminal erişimi çalıştı. Bu sonuç diğer cihazları, firmware sürümlerini veya Linux/Windows donanım uyumluluğunu garanti etmez.
 
 
 Frontend durum testleri için `node --test tests/test_access_state.cjs` kullanılır. Uygulamayı çalıştırmak için Node gerekmez.
@@ -198,3 +198,7 @@ Frontend durum testleri için `node --test tests/test_access_state.cjs` kullanı
 ### Root aktarımında 9010 hatası
 
 Dosyanın gönderilmiş olması ayarların uygulandığını göstermez. v1.17 sürümündeki birleşik SSH komutu cihazın STS ayrıştırıcısı tarafından reddedilebiliyordu. v1.17.1, SSH ayarlarını ve servis çağrılarını ayrı STS satırlarıyla oluşturur. Gerçek firmware ayrıştırıcısıyla Lua 5.1 üzerinde yerel uyumluluk kontrolü yapılmıştır; UCI ve servis etkileri bu kontrolde taklit edilmiştir. Canlı cihazdaki sonucu ayrıca doğrulayın.
+
+### Parola kabul ediliyor ama oturum kapanıyor
+
+SSH çıktısında `Authenticated to ... using "password"` görüldükten sonra oturum `Exit status 1` ile kapanabilir. Bu firmware'in stok root hesabı `/bin/restricted_shell` kullanır; parola izni ile terminal izni ayrıdır. v1.17.2, root kartındaki LAN SSH seçeneği işaretlendiğinde yalnızca root hesabının shell'ini `/bin/ash` yapar. Yalnızca parola değiştirme bu ayarı değiştirmez. Aktarımın tamamlanması terminal erişimini kanıtlamaz; yeni bir SSH oturumu açıp doğrulayın.

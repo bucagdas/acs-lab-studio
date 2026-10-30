@@ -1,5 +1,11 @@
 # Sürüm geçmişi
 
+## v1.17.2
+
+- Stok cihazda parola kabul edilmesine rağmen root oturumunun hemen kapanmasına yol açan restricted shell kısıtı ele alındı. Root kartındaki LAN SSH seçeneği artık yalnızca root hesabının terminal shell'ini de /bin/ash yapar.
+- Yalnızca parola değiştirme seçeneği ve diğer CLI hesaplarının shell ayarları korunur.
+- Shell değişikliği, tekrar uygulama ve hata durumu geçici passwd dosyasında sınandı. Sıfırlanmış laboratuvar cihazında macOS üzerinden yeni root parolasıyla SSH terminal girişi doğrulandı. Linux ve Windows desteği deneysel kalır.
+
 ## v1.17.1
 
 - Root + LAN SSH dosyasında STS ayrıştırıcısının reddettiği iç içe servis yolları kaldırıldı. LAN ayarları ve servis işlemleri ayrı yerel STS satırlarıyla oluşturulur.

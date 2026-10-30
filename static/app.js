@@ -199,7 +199,7 @@ function updateSelectionSummary(){
   if(mode==='log_upload'){$('selection-text').textContent='Sistem günlüğü bu bilgisayara aktarılacak.';return;}
   if(mode==='readonly'){$('selection-text').textContent='Web rolü, SSH ayarları ve ACS desteği okunacak.';return;}
   if(mode==='write'){$('selection-text').textContent='engineer kalıcılık ayarı 1 → 0 → 1 olarak sınanacak.';return;}
-  if(mode==='root_password'){$('selection-text').textContent=$('root-enable-lan-ssh').checked?'Root parolası değiştirilecek; LAN SSH ve root parola girişi açılacak. SSH hizmeti yeniden başlatılacak.':'Yalnızca root parolası değiştirilecek. SSH hizmeti açılmayacak.';return;}
+  if(mode==='root_password'){$('selection-text').textContent=$('root-enable-lan-ssh').checked?'Root parolası değiştirilecek; root terminal erişimi ve LAN SSH açılacak. SSH hizmeti yeniden başlatılacak.':'Yalnızca root parolası değiştirilecek. SSH hizmeti açılmayacak.';return;}
   const actions=[];
   const webAction=$('set-admin-role').checked?'Web admin: rol engineer yapılacak. ':'';
   if($('set-ssh').checked)actions.push($('ssh-action').value==='enable'?'LAN SSH hesap izni açılacak':'SSH hesap izni kapatılacak');

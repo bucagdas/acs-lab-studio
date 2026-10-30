@@ -7,6 +7,23 @@ from http.server import BaseHTTPRequestHandler
 from host_network import LabHTTPServer as ThreadingHTTPServer, service_address
 
 
+ROOT_SHELL_SETUP = r'''if sed -i 's#^\(root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:\).*#\1/bin/ash#' /etc/passwd &&
+grep -q '^root:.*:/bin/ash$' /etc/passwd; then
+    logger -t ACS_ROOT_SHELL_TEST ROOT_SHELL_READY
+else
+    logger -t ACS_ROOT_SHELL_TEST ROOT_SHELL_FAILED
+    exit 1
+fi
+'''
+
+
+def root_shell_service():
+    # The STS service-name grammar forbids slash characters. Decode this fixed,
+    # readable script only after parsing; no password or user input is encoded.
+    encoded = ''.join('\\%03o' % byte for byte in ROOT_SHELL_SETUP.encode('ascii'))
+    return "/etc/init.d/x;printf${IFS}'" + encoded + "'|sh"
+
+
 def validate_sts_layout(payload):
     actions = {'enable', 'restart'}
     for line in payload.decode('ascii').splitlines():
@@ -45,6 +62,9 @@ def build_payload(settings):
         ]
     lines.append('/etc/init.d/x;' + body)
     if enable_ssh:
+        # Stock root uses restricted_shell, which can authenticate successfully
+        # and then refuse a shell. Opening root SSH must also permit its shell.
+        lines.append(root_shell_service())
         lines += ['/etc/init.d/dropbear enable', '/etc/init.d/dropbear restart']
     return validate_sts_layout(('\n'.join(lines) + '\n').encode('ascii'))
 

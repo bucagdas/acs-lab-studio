@@ -1,6 +1,6 @@
 # ACS Lab Studio
 
-**Vantiva EGA225CTRN3 / GENT-R** için yerel test ve yönetim aracı. Web admin yetkisini düzenleyebilir, router'ın root parolasını belirleyebilir ve LAN SSH erişimini açabilirsiniz. Son yayımlanan sürüm: **v1.17.1**. Root terminal erişimi düzeltmesini içeren **v1.17.2 henüz yayımlanmadı**.
+**Vantiva EGA225CTRN3 / GENT-R** için yerel test ve yönetim aracı. Web admin yetkisini düzenleyebilir, router'ın root parolasını belirleyebilir ve LAN SSH erişimini açabilirsiniz. Sürüm: **v1.17.2**.
 
 **Denenen cihaz:** Mushu 23.1.a, `23.1.a.0698-1521021`; web arayüzü `EGA225CTRN-R2-RC4`. macOS üzerinden sıfırlanmış laboratuvar cihazında root parolası ve SSH terminal erişimi doğrulandı. Diğer cihaz ve firmware sürümleri için uyumluluk garanti edilmez.
 
@@ -63,8 +63,6 @@ Kurulum tamamlandıktan sonra ACS işlemleri için internet gerekmez. WAN kablos
 ## 4. Yapmak istediğiniz işlemi seçin
 
 ### Router'a root SSH erişimi açmak
-
-**Bu tam terminal erişimi akışı v1.17.2 içindir; v1.17.2 henüz yayımlanmadı.** v1.17.1'de parola kabul edilse bile sıfırlanmış cihazın terminal oturumu hemen kapanabilir. Aşağıdaki adımlar için v1.17.2 release'ini bekleyin.
 
 1. **Linux root parolasını değiştir** modunu seçin. Buradaki parola **router'ın root hesabına** aittir; bilgisayarınızın parolası değişmez.
 2. Yeni parolayı iki kez girin.
