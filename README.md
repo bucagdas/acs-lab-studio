@@ -108,3 +108,12 @@ Görseller v1.16.1 arayüz önizlemeleridir. Güncel root ve LAN SSH adımları 
 Oturumlar `.runs/`, kurtarma kayıtları `.state/` içinde tutulur; hassas cihaz bilgileri içerebilir. Bu klasörleri paylaşmayın ve bekleyen geri alma kaydı varken silmeyin. Kesinti sonrası **Ağ ayarını kurtar** düğmesini kullanın; bu işlem router bağlantısı gerektirmez.
 
 Ayrıntılı kurulum ve kurtarma: [GUIDE.md](GUIDE.md). Windows desteği: [WINDOWS.md](WINDOWS.md). Sürüm geçmişi: [CHANGELOG.md](CHANGELOG.md).
+
+## Lisans ve yazar
+
+**Lisans:** [GNU General Public License v2.0](LICENSE) (`GPL-2.0-only`). Kullanabilir, değiştirebilir ve ticari olarak dağıtabilirsiniz. Dağıtılan türetilmiş sürümlerin kaynak kodu aynı lisansla sunulmalı; telif ve lisans bildirimleri korunmalıdır. Üçüncü taraf bileşenler kendi lisanslarına tabidir.
+
+**Author:** [bucagdas](https://github.com/bucagdas)
+
+Copyright (c) 2026 bucagdas.
+
