@@ -113,7 +113,7 @@ Ayrıntılı kurulum ve kurtarma: [GUIDE.md](GUIDE.md). Windows desteği: [WINDO
 
 **Lisans:** [GNU General Public License v2.0](LICENSE) (`GPL-2.0-only`). Kullanabilir, değiştirebilir ve ticari olarak dağıtabilirsiniz. Dağıtılan türetilmiş sürümlerin kaynak kodu aynı lisansla sunulmalı; telif ve lisans bildirimleri korunmalıdır. Üçüncü taraf bileşenler kendi lisanslarına tabidir.
 
-**Author:** [bucagdas](https://github.com/bucagdas)
+**Author:** [bucagdas](https://x.com/bucagdas)
 
 Copyright (c) 2026 bucagdas.
 
