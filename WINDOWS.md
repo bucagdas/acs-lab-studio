@@ -1,6 +1,6 @@
 # Windows kurulumu
 
-v1.15, Windows üzerinde **deneysel Npcap + WSL 2 köprüsü** içerir. USB Ethernet ve dahili kablolu Ethernet aynı yöntemle listelenir. Kart Windows'ta kalır; USB/IP aktarımı gerekmez. Bu sürüm gerçek Windows bilgisayar/router üzerinde henüz uçtan uca doğrulanmadı. Mac'teki sentetik testler, Windows sürücüsü veya VLAN uyumluluğunun kanıtı değildir.
+v1.17.3, Windows üzerinde **deneysel Npcap + WSL 2 köprüsü** içerir. USB Ethernet ve dahili kablolu Ethernet aynı yöntemle listelenir. Kart Windows'ta kalır; USB/IP aktarımı gerekmez. Bu sürüm gerçek Windows bilgisayar/router üzerinde henüz uçtan uca doğrulanmadı. Mac'teki sentetik testler, Windows sürücüsü veya VLAN uyumluluğunun kanıtı değildir.
 
 ## Gerekenler
 
@@ -53,11 +53,19 @@ Windows başlatıcısı Ubuntu'yu root olarak çalıştırır. Npcap paket eriş
 
 WSL çalışma kopyası `/var/lib/acs-lab-studio` altındadır. Oturum kayıtları `.runs`, geri alma kayıtları `.state` içindedir. Windows klasörünün NTFS izinlerine güvenilmediği için özel kayıtlar Linux dosya sisteminde tutulur. Raporu panelden indirebilirsiniz.
 
-Yeni ZIP sürümüne geçerken mevcut oturumu kapatın, yeni paketi çıkarın ve **Kurulum.cmd** dosyasını tekrar çalıştırın. Kod güncellenir; WSL'deki `.runs` ve `.state` korunur. Kaynak klasördeki eski oturumlar veya parolalar WSL'ye kopyalanmaz.
+Yeni ZIP sürümüne geçerken mevcut oturumu kapatıp yeni paketi çıkarın. **Baslat.cmd**, açtığınız klasördeki kodu WSL'ye internet gerektirmeden eşitler; WSL'deki `.runs` ve `.state` korunur. Bağımlılık kurulumu veya güncellemesi gerekiyorsa internet erişimi varken **Kurulum.cmd** çalıştırın. Kaynak klasördeki eski oturumlar veya parolalar WSL'ye kopyalanmaz.
 
 Çıkmadan önce panelde işlemi bitirin, ardından terminalde Ctrl+C kullanın. Yazma/geri alma sürüyorsa normal kapanış reddedilir. Terminal zorla kapanır veya fiziksel bağlantı kesilirse otomatik geri alma garanti edilemez; sonraki oturumda bekleyen kaydı kontrol edin. Araç başka WSL dağıtımlarını kapatmaz veya ilgisiz PPP süreçlerini sonlandırmaz.
 
 ## Uyumluluk ve kalan doğrulama
+
+v1.17.3 raporu, PPP IP adreslerini, ACS alan adının DNS yanıtını ve dinleyici hatalarını gösterir. PPPoE kurulup ACS bildirimi gelmezse **Raporu indir** çıktısı bu aşamaları ayırmaya yardımcı olur. DNS yanıtının gönderilmesi, router'ın bunu aldığını veya ACS bağlantısı kurduğunu tek başına kanıtlamaz.
+
+Yalnızca Windows adaptör sorgusunun PowerShell sözdizimini kontrol etmek için Studio klasöründe çalıştırın; bu test adaptörü açmaz veya ayar değiştirmez:
+
+```bat
+.venv-win\Scripts\python.exe -m unittest discover -s tests -p test_windows_powershell.py -v
+```
 
 WSL'de `/dev/net/tun`, `/dev/ppp` veya `ppp_async` eksikse hazırlık durur. Önce `wsl --update` uygulayın; WSL'nin gerek gördüğü yeniden başlatma adımlarını tamamlayın. Stok WSL çekirdeğinde gereken modüller bulunmuyorsa ortam desteklenmiş sayılmaz. USB Ethernet sürücüsünün Linux'ta bulunması gerekmez; fiziksel sürücü Windows'ta çalışır.
 

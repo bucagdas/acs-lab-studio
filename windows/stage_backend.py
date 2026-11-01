@@ -1,4 +1,5 @@
 """Stage runtime code on WSL's Linux filesystem; preserve sessions/recovery."""
+import argparse
 import fcntl
 import os
 from pathlib import Path
@@ -6,6 +7,8 @@ import shutil
 import subprocess
 import sys
 import venv
+
+TARGET = Path('/var/lib/acs-lab-studio')
 
 
 def stage(source, target):
@@ -18,7 +21,7 @@ def stage(source, target):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError('Önce çalışan ACS Lab Studio oturumunu kapatın.')
-        for file in [*source.glob('*.py'), source / 'requirements.txt', source / 'README.md', source / 'WINDOWS.md']:
+        for file in [*source.glob('*.py'), source / 'requirements.txt', source / 'README.md', source / 'WINDOWS.md', source / 'LICENSE']:
             if file.is_file() and not file.is_symlink():
                 shutil.copyfile(file, target / file.name)
         for name in ('engines', 'static', 'windows'):
@@ -29,12 +32,17 @@ def stage(source, target):
                     shutil.copyfile(file, destination / file.name)
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--copy-only', action='store_true', help='Copy code without installing dependencies')
+    parser.add_argument('source', type=Path)
+    args = parser.parse_args(argv)
     if sys.platform != 'linux' or os.geteuid() != 0:
         raise SystemExit('WSL root oturumu gerekli.')
-    source = Path(sys.argv[1]).resolve()
-    target = Path('/var/lib/acs-lab-studio')
-    stage(source, target)
+    target = TARGET
+    stage(args.source, target)
+    if args.copy_only:
+        return
     environment = target / '.venv'
     if not (environment / 'bin/python3').exists():
         venv.EnvBuilder(with_pip=True).create(environment)

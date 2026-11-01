@@ -1,4 +1,5 @@
 import io
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,7 @@ from windows.launcher import decode_output, wsl_command, WindowsRelay
 from windows.protocol import (Channel, FRAME, HELLO, ERROR, SELECT, ACK, HEADER,
                               MAX_RECORD, frame_record, unpack_frame, pppoe_frame)
 from windows.stage_backend import stage
+from windows import stage_backend
 from windows.wsl_relay import Relay
 
 
@@ -244,6 +246,41 @@ class LinuxRelayTests(unittest.TestCase):
         self.assertEqual((target / '.state/write_probe_state.json').read_text(), 'pending recovery')
         self.assertEqual((target / '.runs/prior.log').read_text(), 'old record')
         self.assertFalse((target / '.state/secret').exists())
+
+    def test_copy_only_refreshes_code_offline_without_replacing_runtime_state(self):
+        source, target = Path(self.temp.name) / 'source with spaces', Path(self.temp.name) / 'target'
+        for folder in ('engines', 'static', 'windows'):
+            (source / folder).mkdir(parents=True)
+        (source / 'app.py').write_text('current backend')
+        (source / 'LICENSE').write_text('fixture license')
+        (source / 'static/app.js').write_text('current frontend')
+        (target / '.state').mkdir(parents=True)
+        (target / '.state/write_probe_state.json').write_text('existing recovery')
+        (target / 'app.py').write_text('stale backend')
+        with patch.object(stage_backend, 'TARGET', target), \
+                patch.object(stage_backend.sys, 'platform', 'linux'), \
+                patch.object(stage_backend.os, 'geteuid', return_value=0), \
+                patch.object(stage_backend.venv, 'EnvBuilder') as builder, \
+                patch.object(stage_backend.subprocess, 'run') as command:
+            stage_backend.main(['--copy-only', str(source)])
+        self.assertEqual((target / 'app.py').read_text(), 'current backend')
+        self.assertEqual((target / 'static/app.js').read_text(), 'current frontend')
+        self.assertEqual((target / 'LICENSE').read_text(), 'fixture license')
+        self.assertEqual((target / '.state/write_probe_state.json').read_text(), 'existing recovery')
+        self.assertFalse((target / '.venv').exists())
+        builder.assert_not_called()
+        command.assert_not_called()
+
+    def test_staging_refuses_to_replace_code_in_a_running_backend(self):
+        source, target = Path(self.temp.name) / 'source', Path(self.temp.name) / 'target'
+        source.mkdir(); (target / '.state').mkdir(parents=True)
+        (source / 'app.py').write_text('new code')
+        (target / 'app.py').write_text('running code')
+        with (target / '.state/app.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(RuntimeError, 'çalışan'):
+                stage(source, target)
+        self.assertEqual((target / 'app.py').read_text(), 'running code')
 
 
 if __name__ == '__main__':

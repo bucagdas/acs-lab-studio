@@ -1085,9 +1085,10 @@ class Bridge:
             resp += question + ans
             try:
                 s.sendto(resp, addr)
-            except OSError:
-                pass
-            print("[dns] %s type=%d -> %s" % (qname, qtype, self.args.local_ip if ans else "no-answer"))
+            except OSError as e:
+                print("[dns] response failed: %s" % e)
+                continue
+            print("[dns] %s type=%d -> %s" % (qname, qtype, answer_ip if ans else "no-answer"))
         s.close()
 
     def ntp_loop(self, stop):

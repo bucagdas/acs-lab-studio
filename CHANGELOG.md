@@ -1,5 +1,13 @@
 # Sürüm geçmişi
 
+## v1.17.3
+
+- Windows başlatıcısı kodu mevcut klasörden WSL'ye çevrimdışı eşitler; eski arka uçla çalışmaya devam etme durumu giderildi. Oturum ve kurtarma kayıtları korunur.
+- Windows adaptör sorgusundaki fazladan `+` kaldırıldı. Gerçek PowerShell ayrıştırıcı kontrolü, PowerShell bulunan ortamlarda çalışabilen ayrı bir test olarak eklendi.
+- DNS günlüğünde gerçekten gönderilen IP gösterilir; gönderim hatası başarılı yanıt gibi yazılmaz.
+- Rapor PPP IP adreslerini ve ACS DNS yanıtını içerir; PPP kimlik bilgileri ve diğer DNS sorguları gizli kalır.
+- Bu değişiklikler Windows'ta bildirilen ACS bekleme sorununun çözüldüğünü kanıtlamaz; gerçek cihaz logları ve Npcap/WSL testi bekleniyor.
+
 ## v1.17.2
 
 - Stok cihazda parola kabul edilmesine rağmen root oturumunun hemen kapanmasına yol açan restricted shell kısıtı ele alındı. Root kartındaki LAN SSH seçeneği artık yalnızca root hesabının terminal shell'ini de /bin/ash yapar.

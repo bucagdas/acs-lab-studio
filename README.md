@@ -1,6 +1,6 @@
 # ACS Lab Studio
 
-**Vantiva EGA225CTRN3 / GENT-R** için yerel test ve yönetim aracı. Web admin yetkisini düzenleyebilir, router'ın root parolasını belirleyebilir ve LAN SSH erişimini açabilirsiniz. Sürüm: **v1.17.2**.
+**Vantiva EGA225CTRN3 / GENT-R** için yerel test ve yönetim aracı. Web admin yetkisini düzenleyebilir, router'ın root parolasını belirleyebilir ve LAN SSH erişimini açabilirsiniz. Sürüm: **v1.17.3**.
 
 **Denenen cihaz:** Mushu 23.1.a, `23.1.a.0698-1521021`; web arayüzü `EGA225CTRN-R2-RC4`. macOS üzerinden sıfırlanmış laboratuvar cihazında root parolası ve SSH terminal erişimi doğrulandı. Diğer cihaz ve firmware sürümleri için uyumluluk garanti edilmez.
 

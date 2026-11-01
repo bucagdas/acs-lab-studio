@@ -64,9 +64,11 @@ python3 app.py --preview
 
 ## Platform doğrulaması
 
-Mac üzerinde 100 Python testi ve 9 frontend durum testi; Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
+Mac üzerinde 106 Python testi ve 9 frontend durum testi geçti. Gerçek PowerShell ayrıştırıcı testi, PowerShell bulunmadığı için atlandı. Bu testler Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
 
 Windows testleri; ikili kanalda parçalı okuma/yazma, yalnızca PPPoE aktarımı, USB/dahili kart listesi, kart seçim izinleri, kaynak MAC denetimi, bırakma/kapanış, WSL sanal NAT adaptörünün dışlanması ve güncellemede kurtarma kayıtlarının korunmasını kapsar. Bunlar taklit sürücü yanıtları ve yerel alt süreçlerle sınanır; gerçek Windows/Npcap testi değildir.
+
+macOS üzerinde ek olarak geçici localhost portlarında gerçek UDP DNS ve HTTP ACS alışverişi sınandı. Her iki motorun DNS yanıtları v1.17.2 ile birebir aynıydı; HTTP kimlik doğrulama, chunked Inform ve GetRPCMethods yanıtları başarılıydı. Bu kontrol fiziksel Ethernet veya Linux/Windows sürücü testi değildir.
 
 Linux ve Windows'ta kalan canlı doğrulama sırası: PADI → PPP/IP → ACS bildirimi → salt okunur sonuç → log aktarımı → yazma/geri alma → seçilen ayarlar. Windows'ta USB ve dahili kartta ayrı ayrı doğrulanmalıdır.
 

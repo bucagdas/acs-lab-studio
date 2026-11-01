@@ -7,7 +7,7 @@ import threading
 import uuid
 from .protocol import FRAME, ERROR, frame_record, pppoe_frame
 
-ADAPTER_SCRIPT = r"""+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+ADAPTER_SCRIPT = r"""[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 Get-NetAdapter -Physical | Where-Object { $_.NdisMedium -eq 0 -and $_.NdisPhysicalMedium -in @(0,14) } |
 Select-Object Name,InterfaceDescription,InterfaceGuid,MacAddress,Status |
 ConvertTo-Json -Compress

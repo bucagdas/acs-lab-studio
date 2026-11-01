@@ -75,6 +75,14 @@ def setup(distro):
     print('Hazırlık tamamlandı. Güncel Npcap kuruluyken Baslat.cmd dosyasını yönetici olarak açın.')
 
 
+def sync_backend(distro):
+    # Execute the updater from the selected ZIP folder, never a stale WSL copy.
+    # Copy-only preserves private state and works after Internet is disconnected.
+    source = output(wsl_command(distro, 'wslpath', '-a', '-u', str(BASE)))
+    subprocess.run(wsl_command(distro, 'python3', source + '/windows/stage_backend.py',
+                               '--copy-only', source), check=True)
+
+
 def check(distro):
     problems = []
     if importlib.util.find_spec('scapy') is None:
@@ -216,6 +224,7 @@ def main():
             probe.bind(('127.0.0.1', args.port))
         except OSError as exc:
             raise RuntimeError('Panel portu kullanılıyor. Eski oturumu kapatın veya --port ile başka port seçin.') from exc
+    sync_backend(selected)
     # No capture is opened until an interface lease arrives from the UI.
     process = subprocess.Popen(wsl_command(selected, TARGET + '/.venv/bin/python3',
                                            TARGET + '/windows/wsl_relay.py', '--port', str(args.port)),

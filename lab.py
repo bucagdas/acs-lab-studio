@@ -90,6 +90,19 @@ def validate_settings(data):
 
 def public_line(line):
     # Omit packet dumps, PAP/CHAP credentials, raw SOAP and authentication data.
+    if line.startswith('[pppd]'):
+        # PPP debug output can include credentials; expose only negotiated IPs.
+        match=re.fullmatch(r'\[pppd\]\s+(local|remote)\s+IP address\s+([0-9.]+)',line)
+        if not match:return None
+        try:address=str(ipaddress.IPv4Address(match[2]))
+        except ipaddress.AddressValueError:return None
+        return '[ppp] '+('Bilgisayar' if match[1]=='local' else 'Router')+' PPP IP: '+address
+    dns=re.fullmatch(r'\[dns\] acs3\.turk\.net type=(1|28) -> ([0-9.]+|no-answer)',line,re.IGNORECASE)
+    if dns:
+        if dns[2]=='no-answer':return '[dns] ACS DNS yanıtı: tür='+dns[1]+' adres yok'
+        try:address=str(ipaddress.IPv4Address(dns[2]))
+        except ipaddress.AddressValueError:return None
+        return '[dns] ACS DNS yanıtı: tür='+dns[1]+' adres='+address
     if not re.match(r'^\[(?:acs(?::\d+)?|cwmp|write-test|config|sts|root-password|ppp|pppoe|dns|ntp|lab|\*)\]', line):
         return None
     if line.startswith('[root-password]'):
