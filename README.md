@@ -109,6 +109,8 @@ Oturumlar `.runs/`, kurtarma kayıtları `.state/` içinde tutulur; hassas cihaz
 
 Ayrıntılı kurulum ve kurtarma: [GUIDE.md](GUIDE.md). Windows desteği: [WINDOWS.md](WINDOWS.md). Sürüm geçmişi: [CHANGELOG.md](CHANGELOG.md).
 
+Anakart ve UART fotoğrafları: [Donanım referansı](docs/hardware.md). ACS Lab Studio için cihazı açmak gerekmez.
+
 ## Lisans ve yazar
 
 **Lisans:** [GNU General Public License v2.0](LICENSE) (`GPL-2.0-only`). Kullanabilir, değiştirebilir ve ticari olarak dağıtabilirsiniz. Dağıtılan türetilmiş sürümlerin kaynak kodu aynı lisansla sunulmalı; telif ve lisans bildirimleri korunmalıdır. Üçüncü taraf bileşenler kendi lisanslarına tabidir.
