@@ -200,8 +200,12 @@ def find_ppp_interface(local_ip, peer_ip, expected=None):
                 if entry.get('ifname') != expected or 'POINTOPOINT' not in entry.get('flags', []):
                     continue
                 for address in entry.get('addr_info', []):
+                    # iproute2's text says "peer", but its JSON key is
+                    # "address" for IFA_ADDRESS. Keep the older peer form
+                    # compatible while requiring the exact owned IP pair.
+                    remote = address.get('address', address.get('peer', ''))
                     if (address.get('family') == 'inet' and address.get('local') == local_ip
-                            and address.get('peer', '').split('/')[0] == peer_ip):
+                            and isinstance(remote, str) and remote.split('/')[0] == peer_ip):
                         return expected
         elif platform.system() == 'Darwin':
             for block in re.split(r'\n(?=\S+:)', _run(['ifconfig'], timeout=2)):

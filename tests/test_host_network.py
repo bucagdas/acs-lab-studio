@@ -106,6 +106,24 @@ class HostNetworkTests(unittest.TestCase):
             entry['flags'] = ['UP']
             self.assertIsNone(host.find_ppp_interface(local, peer, name))
 
+    def test_linux_monitor_reads_iproute2_point_to_point_address(self):
+        # iproute2 prints "peer" in text mode but uses "address" in JSON.
+        name = 'acs0123456789'
+        entry = {'ifindex': 12, 'ifname': name,
+                 'flags': ['POINTOPOINT', 'MULTICAST', 'NOARP', 'UP', 'LOWER_UP'],
+                 'addr_info': [{'family': 'inet', 'local': '10.116.13.100',
+                                'address': '10.116.13.101', 'prefixlen': 32,
+                                'scope': 'global', 'valid_life_time': 4294967295,
+                                'preferred_life_time': 4294967295}]}
+        with patch('host_network.platform.system', return_value='Linux'), \
+                patch.object(host, '_ip_json', return_value=[entry]):
+            self.assertEqual(host.find_ppp_interface('10.116.13.100', '10.116.13.101', name), name)
+            self.assertIsNone(host.find_ppp_interface('10.116.13.100', '10.116.13.10', name))
+            self.assertIsNone(host.find_ppp_interface('10.116.13.10', '10.116.13.101', name))
+            self.assertIsNone(host.find_ppp_interface('10.116.13.100', '10.116.13.101', 'acs9876543210'))
+            entry['addr_info'][0]['address'] = None
+            self.assertIsNone(host.find_ppp_interface('10.116.13.100', '10.116.13.101', name))
+
     def test_macos_monitor_requires_ppp_and_exact_peer(self):
         output = ('en11: flags=UP\n\tinet 10.116.13.100 netmask 0xffffffff\n'
                   'ppp0: flags=POINTOPOINT\n\tinet 10.116.13.100 --> 10.116.13.101 netmask 0xff000000\n')
@@ -185,6 +203,7 @@ class EngineTransportTests(unittest.TestCase):
                 ns = dict(threading=Mock(), add_acs_alias=add, find_ppp_interface=find)
                 exec(compile(ast.fix_missing_locations(ast.Module(body=[cls], type_ignores=[])), str(path), 'exec'), ns)
                 bridge = ns['Bridge']()
+                bridge.pppd = Mock()
                 bridge.stop = stop; bridge.ppp_name = 'acs0123456789'; bridge.tap_loop = Mock()
                 bridge.args = types.SimpleNamespace(local_ip='10.116.13.100', peer_ip='10.116.13.101', acs_ip='193.192.97.234')
                 bridge.monitor_ppp()
@@ -206,6 +225,7 @@ class EngineTransportTests(unittest.TestCase):
                 ns['os'].ttyname.return_value = '/dev/pts/4'
                 exec(compile(ast.fix_missing_locations(ast.Module(body=[cls], type_ignores=[])), str(path), 'exec'), ns)
                 bridge = ns['Bridge']()
+                bridge.pppd = bridge.pty_master = bridge.pty_thread = bridge.pppd_thread = None
                 bridge.args = types.SimpleNamespace(local_ip='10.116.13.100', peer_ip='10.116.13.101')
                 bridge.ppp_name = 'acs0123456789'; bridge.pppd_buf = b''; bridge.rx_pending = []
                 bridge.pppd_reader = Mock(); bridge.read_pty = Mock()

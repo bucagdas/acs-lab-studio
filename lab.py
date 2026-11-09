@@ -301,6 +301,10 @@ class Lab:
                 sock=socket.socket(socket.AF_INET,kind)
                 sockets.append(sock)
                 try:
+                    if kind == socket.SOCK_STREAM:
+                        # Match the HTTP servers: TIME_WAIT from a completed
+                        # test must not masquerade as a live listener.
+                        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     prepare_socket(sock)
                     sock.bind((ip,port))
                 except OSError as exc:raise ValueError(f'{ip}:{port} kullanılıyor veya açılamıyor. Önce eski test sunucusunu durdurun.') from exc

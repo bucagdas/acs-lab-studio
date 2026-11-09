@@ -83,7 +83,7 @@ def sync_backend(distro):
                                '--copy-only', source), check=True)
 
 
-def check(distro):
+def check(distro, prepare=False):
     problems = []
     if importlib.util.find_spec('scapy') is None:
         problems.append('Windows Python ortamında Scapy yok; Kurulum.cmd çalıştırın.')
@@ -95,8 +95,11 @@ def check(distro):
         problems.append('USB veya dahili fiziksel Ethernet kartı bulunamadı.')
     for card in cards:
         print(f"{card['name']}: {card['description']} ({'aktif' if card['active'] else 'pasif'})")
-    result = subprocess.run(wsl_command(distro, TARGET + '/.venv/bin/python3',
-                                        TARGET + '/windows/check_backend.py'))
+    command = wsl_command(distro, TARGET + '/.venv/bin/python3',
+                          TARGET + '/windows/check_backend.py')
+    if prepare:
+        command.append('--prepare')
+    result = subprocess.run(command)
     if result.returncode:
         problems.append('WSL hazırlığı eksik; Kurulum.cmd ve WINDOWS.md dosyasına bakın.')
     for problem in problems:
@@ -212,19 +215,21 @@ def main():
     if args.mode == 'setup':
         setup(selected)
         return
-    cards, problems = check(selected)
+    if args.mode == 'run':
+        if not ctypes.windll.shell32.IsUserAnAdmin():
+            raise RuntimeError('Baslat.cmd dosyasını sağ tıklayıp yönetici olarak çalıştırın.')
+        # A stale preflight can reject the new package before it gets copied.
+        sync_backend(selected)
+    cards, problems = check(selected, prepare=args.mode == 'run')
     if problems or args.mode == 'check':
         if problems:
             raise SystemExit(1)
         return
-    if not ctypes.windll.shell32.IsUserAnAdmin():
-        raise RuntimeError('Baslat.cmd dosyasını sağ tıklayıp yönetici olarak çalıştırın.')
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         try:
             probe.bind(('127.0.0.1', args.port))
         except OSError as exc:
             raise RuntimeError('Panel portu kullanılıyor. Eski oturumu kapatın veya --port ile başka port seçin.') from exc
-    sync_backend(selected)
     # No capture is opened until an interface lease arrives from the UI.
     process = subprocess.Popen(wsl_command(selected, TARGET + '/.venv/bin/python3',
                                            TARGET + '/windows/wsl_relay.py', '--port', str(args.port)),

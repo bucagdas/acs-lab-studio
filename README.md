@@ -1,6 +1,6 @@
 # ACS Lab Studio
 
-**Vantiva EGA225CTRN3 / GENT-R** için yerel test ve yönetim aracı. Web admin yetkisini düzenleyebilir, router'ın root parolasını belirleyebilir ve LAN SSH erişimini açabilirsiniz. Sürüm: **v1.17.3**.
+**Vantiva EGA225CTRN3 / GENT-R** için yerel test ve yönetim aracı. Web admin yetkisini düzenleyebilir, router'ın root parolasını belirleyebilir ve LAN SSH erişimini açabilirsiniz. Sürüm: **v1.17.4**.
 
 **Denenen cihaz:** Mushu 23.1.a, `23.1.a.0698-1521021`; web arayüzü `EGA225CTRN-R2-RC4`. macOS üzerinden sıfırlanmış laboratuvar cihazında root parolası ve SSH terminal erişimi doğrulandı. Diğer cihaz ve firmware sürümleri için uyumluluk garanti edilmez.
 
@@ -15,7 +15,7 @@
 | Sistem | İlk kurulum | Başlatma |
 | --- | --- | --- |
 | macOS | Python 3.9+, Scapy, pppd ve OpenSSL gerekir. Python paketleri için aşağıdaki komutları kullanın. | `Baslat.command` dosyasını açın. |
-| Linux | [Linux kurulumunu](GUIDE.md#linux---deneysel) tamamlayın. **Deneyseldir; gerçek donanım doğrulaması bekliyor.** | Klasörde `sh Baslat.sh` çalıştırın. |
+| Linux | [Linux kurulumunu](GUIDE.md#linux---deneysel) tamamlayın. **Deneyseldir; gerçek donanım doğrulaması bekliyor.** | Klasörde `sudo sh Baslat.sh` çalıştırın. |
 | Windows | [Windows kurulumunu](WINDOWS.md) tamamlayın: Python, WSL 2 ve Npcap; ardından `Kurulum.cmd` ve `Kontrol.cmd`. **Deneyseldir.** | `Baslat.cmd` dosyasını yönetici olarak açın. |
 
 <details>

@@ -22,6 +22,7 @@ import os
 import pty
 import queue
 import re
+import select
 import shutil
 import socket
 import ssl
@@ -829,6 +830,7 @@ class Bridge:
         self.stop = threading.Event()
         self.pty_master = None
         self.pppd = None
+        self.pty_thread = self.pppd_thread = None
         self.ppp_name = 'acs' + os.urandom(5).hex()
         self.pppd_buf = b""
         self.rx_pending = []  # (proto, payload) from the CPE before pppd is ready
@@ -962,26 +964,37 @@ class Bridge:
             if not self.stop.is_set():
                 print("[pty] write error: %s" % e)
 
-    def read_pty(self):
-        while not self.stop.is_set():
-            master = self.pty_master
-            if master is None:
-                time.sleep(0.05)
-                continue
+    def read_pty(self, master=None, process=None):
+        # A reader belongs to exactly one child/PTY, never a later reconnect.
+        master = self.pty_master if master is None else master
+        process = self.pppd if process is None else process
+        buf = b""
+        while (not self.stop.is_set() and process is not None and
+               self.pppd is process and self.pty_master == master):
             try:
+                ready, _, _ = select.select([master], [], [], 0.2)
+                if self.pppd is not process or self.pty_master != master:
+                    break
+                if not ready:
+                    if process.poll() is not None:
+                        break
+                    continue
                 data = os.read(master, 4096)
-            except OSError:
+            except (OSError, ValueError):
                 # EIO is normal until pppd has opened the slave side.
-                if self.stop.is_set() or (self.pppd is not None and self.pppd.poll() is not None):
+                if self.stop.is_set() or self.pppd is not process or process.poll() is not None:
                     break
                 time.sleep(0.05)
                 continue
+            if self.pppd is not process or self.pty_master != master:
+                break
             if not data:
+                if process.poll() is not None:
+                    break
                 time.sleep(0.05)
                 continue
-            self.pppd_buf += data
-            # keep the last incomplete chunk after the final flag
-            parts = self.pppd_buf.split(b"\x7e")
+            buf += data
+            parts = buf.split(b"\x7e")
             if len(parts) > 1:
                 for frame in hdlc_decode(b"\x7e".join(parts[:-1]) + b"\x7e"):
                     if len(frame) < 2:
@@ -993,18 +1006,17 @@ class Bridge:
                             self.send_pppoe(0x00, self.session, proto=proto, payload=frame[2:])
                         else:
                             print("[bridge] pppd frame before PPPoE session, dropped (proto=0x%04x)" % proto)
-                self.pppd_buf = parts[-1]
+                buf = parts[-1]
 
-    def pppd_reader(self):
-        if not self.pppd:
-            return
-        for line in self.pppd.stdout:
+    def pppd_reader(self, process):
+        for line in process.stdout:
             print("[pppd] " + line.decode("utf-8", "replace").rstrip())
 
     def start_pppd(self):
+        # Reap a child which exited without PADT before opening another PTY.
+        self.stop_pppd()
         ensure_pap_secrets()
-        # monitor_ppp adds the ACS alias to this run's PPP interface.
-        # Do not overwrite the system-wide /etc/ppp/ip-up hook.
+        # monitor_ppp adds the ACS alias; system ip-up hooks stay untouched.
         master, slave = pty.openpty()
         slave_name = os.ttyname(slave)
         os.close(slave)
@@ -1012,31 +1024,42 @@ class Bridge:
         cmd = pppd_command(slave_name, self.args.local_ip,
                             self.args.peer_ip, self.ppp_name)
         print("[pppd] %s" % " ".join(cmd))
-        self.pppd = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        threading.Thread(target=self.pppd_reader, daemon=True).start()
-        threading.Thread(target=self.read_pty, daemon=True).start()
-        # Flush CPE frames that arrived before pppd was ready.
+        self.pppd = process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.pppd_thread = threading.Thread(target=self.pppd_reader, args=(process,), daemon=True)
+        self.pty_thread = threading.Thread(target=self.read_pty, args=(master, process), daemon=True)
+        self.pppd_thread.start()
+        self.pty_thread.start()
         for proto, payload in self.rx_pending:
             self.write_pty(proto.to_bytes(2, "big") + payload)
         self.rx_pending = []
 
     def stop_pppd(self):
-        if self.pppd is not None:
+        process, master = self.pppd, self.pty_master
+        # Invalidate readers before terminating or reusing any descriptor.
+        self.pppd = self.pty_master = None
+        if process is not None:
             try:
-                self.pppd.terminate()
-                self.pppd.wait(timeout=2)
-            except Exception:
+                process.terminate()
+                process.wait(timeout=2)
+            except (OSError, subprocess.TimeoutExpired):
                 try:
-                    self.pppd.kill()
-                except Exception:
+                    process.kill()
+                    process.wait(timeout=2)
+                except (OSError, subprocess.TimeoutExpired):
                     pass
-            self.pppd = None
-        if self.pty_master is not None:
+        for thread in (self.pty_thread, self.pppd_thread):
+            if thread is not None and thread is not threading.current_thread():
+                thread.join(timeout=1)
+        if process is not None and (self.pppd_thread is None or not self.pppd_thread.is_alive()):
+            process.stdout.close()
+        if master is not None:
             try:
-                os.close(self.pty_master)
-            except (OSError, KeyboardInterrupt):
+                os.close(master)
+            except OSError:
                 pass
-            self.pty_master = None
+        self.pty_thread = self.pppd_thread = None
+        self.pppd_buf = b""
+        self.rx_pending = []
 
     def dns_loop(self, stop):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -1204,12 +1227,17 @@ class Bridge:
 
     def monitor_ppp(self):
         while not self.stop.is_set():
+            process = self.pppd
             iface = find_ppp_interface(self.args.local_ip, self.args.peer_ip, self.ppp_name)
+            if process is not self.pppd:
+                continue
             if not iface:
                 self.acs_alias_iface = None
-            if iface and getattr(self, "acs_alias_iface", None) != iface:
-                if self.add_acs_alias(iface):
+            if iface and (getattr(self, "acs_alias_iface", None) != iface or
+                          getattr(self, "acs_alias_process", None) is not process):
+                if self.add_acs_alias(iface) and self.pppd is process:
                     self.acs_alias_iface = iface
+                    self.acs_alias_process = process
             if iface and (not getattr(self, "tap_started", False) or iface != getattr(self, "tap_iface", None)):
                 self.tap_started = True
                 self.tap_iface = iface

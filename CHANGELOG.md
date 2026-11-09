@@ -1,5 +1,13 @@
 # Sürüm geçmişi
 
+## v1.17.4
+
+- Linux ve WSL PPP keşfi, iproute2 JSON çıktısındaki `address` alanını okur. PPP kurulmasına rağmen ACS IP adresinin eklenmemesine neden olan hata düzeltildi.
+- Tamamlanan TCP bağlantılarının TIME_WAIT durumu, yeni testi yanlışlıkla engellemez; çalışan başka bir sunucu hâlâ başlangıcı engeller.
+- Yeniden bağlantıda eski PTY okuyucusu yeni bağlantıya geçmez. Okuyucu ve PPP alt süreci temizlenir; aynı arayüz adı hızla yeniden kullanılsa bile ACS adresi tekrar eklenir.
+- Windows, arka uç kodunu bağımlılık kontrolünden önce eşitler. WSL yeniden açıldığında tun ve ppp_async modülleri başlatmada tekrar yüklenir; Kontrol.cmd salt okunur kalır.
+- 116 Python ve 9 arayüz testi geçti; gerçek PowerShell ayrıştırıcı testi ortamda bulunmadığı için atlandı. Yeni kontroller gerçek PTY/HDLC ve localhost TCP bağlantıları içerir. Linux/Pardus ve Windows/Npcap üzerinde bu sürümün uçtan uca cihaz doğrulaması bekliyor.
+
 ## v1.17.3
 
 - Windows başlatıcısı kodu mevcut klasörden WSL'ye çevrimdışı eşitler; eski arka uçla çalışmaya devam etme durumu giderildi. Oturum ve kurtarma kayıtları korunur.

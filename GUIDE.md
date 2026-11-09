@@ -33,7 +33,7 @@ sudo modprobe ppp_async
 Başlatın:
 
 ```sh
-sh Baslat.sh
+sudo sh Baslat.sh
 ```
 
 Betik `.venv` ortamını seçip gerektiğinde `sudo` ister. Panel **http://127.0.0.1:8890** adresindedir. Linux ekranının üstünde **Linux · deneysel** yazar. Fiziksel Ethernet adaptörleri `eth0`, `enp3s0`, `enx…` gibi kendi adlarıyla listelenir; Wi-Fi, sanal köprü, veth ve VLAN alt arayüzleri filtrelenir. VLAN 35 etiketi motor tarafından fiziksel adaptör üzerinden gönderilir; ayrı bir VLAN arayüzü oluşturmayın.
@@ -64,11 +64,13 @@ python3 app.py --preview
 
 ## Platform doğrulaması
 
-Mac üzerinde 106 Python testi ve 9 frontend durum testi geçti. Gerçek PowerShell ayrıştırıcı testi, PowerShell bulunmadığı için atlandı. Bu testler Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
+v1.17.4 için Mac üzerinde 116 Python testi ve 9 frontend durum testi geçti. Gerçek PowerShell ayrıştırıcı testi, PowerShell bulunmadığı için atlandı. Bu testler Linux adaptör filtreleme, kablo durumu, PPP komutları, geçici IP ekleme, oturuma ait PPP bağlantısını seçme, Linux dinleyici adresleri ve mevcut ACS işlemlerini sınar. Linux sistem yanıtları bu testlerde taklit edilir; bu sonuç gerçek Linux donanım testi değildir. Her iki motorun Linux PPP komutu üretmesi ve yalnızca kendi alt sürecini temizlemesi de sınanır.
 
 Windows testleri; ikili kanalda parçalı okuma/yazma, yalnızca PPPoE aktarımı, USB/dahili kart listesi, kart seçim izinleri, kaynak MAC denetimi, bırakma/kapanış, WSL sanal NAT adaptörünün dışlanması ve güncellemede kurtarma kayıtlarının korunmasını kapsar. Bunlar taklit sürücü yanıtları ve yerel alt süreçlerle sınanır; gerçek Windows/Npcap testi değildir.
 
-macOS üzerinde ek olarak geçici localhost portlarında gerçek UDP DNS ve HTTP ACS alışverişi sınandı. Her iki motorun DNS yanıtları v1.17.2 ile birebir aynıydı; HTTP kimlik doğrulama, chunked Inform ve GetRPCMethods yanıtları başarılıydı. Bu kontrol fiziksel Ethernet veya Linux/Windows sürücü testi değildir.
+v1.17.4 testleri gerçek PTY üzerinden parçalı HDLC aktarımını, eski okuyucunun bağlantı sonunda çıkmasını, hızlı yeniden bağlantıda ACS adresinin tekrar eklenmesini ve localhost TCP TIME_WAIT sonrasında yeni test başlatmayı da kapsar. Çalışan başka bir sunucunun başlangıcı engellemeye devam ettiği doğrulandı. WSL açılış sırası ve modül yükleme komutları taklit edilerek sınandı.
+
+Önceki sürümde macOS üzerinde ek olarak geçici localhost portlarında gerçek UDP DNS ve HTTP ACS alışverişi sınandı. Her iki motorun DNS yanıtları v1.17.2 ile birebir aynıydı; HTTP kimlik doğrulama, chunked Inform ve GetRPCMethods yanıtları başarılıydı. Bu kontrol fiziksel Ethernet veya Linux/Windows sürücü testi değildir.
 
 Linux ve Windows'ta kalan canlı doğrulama sırası: PADI → PPP/IP → ACS bildirimi → salt okunur sonuç → log aktarımı → yazma/geri alma → seçilen ayarlar. Windows'ta USB ve dahili kartta ayrı ayrı doğrulanmalıdır.
 
@@ -90,6 +92,14 @@ Operatörün ONT bağlantısı test sırasında WAN'dan ayrılmış olmalı. Ara
 Başlatma; tek hedef MAC için PPPoE yanıtlayıcısı, DNS/NTP ve test ACS servisleri açar. macOS'ta ACS/DNS/NTP dinleyicileri mevcut davranışla tüm IPv4 arayüzlerinde, Linux'ta yalnızca test IP adreslerinde dinler. Aracı izole laboratuvarda çalıştırın. Web kontrol paneli yalnızca `127.0.0.1` üzerinde dinler. Test sırasında internet hizmeti sağlanmaz. Güvenlik duvarı ayarı otomatik değiştirilmez.
 
 Başka bir test betiği çalışıyorsa önce onu durdurun. Test dinleyici adreslerinde kullanımda olan 53/80/123/443 portları yeni testin başlamasını engeller. Araç ilgisiz pppd süreçlerini sonlandırmaz.
+
+## PPP kuruldu ama ACS bildirimi gelmiyor
+
+v1.17.4, Linux PPP arayüzünü iproute2 JSON çıktısındaki `address` alanıyla tanır. Önceki sürümdeki `peer` varsayımı ACS IP adresinin eklenmesini engelleyebiliyordu. Bu düzeltme WSL arka ucunda da kullanılır.
+
+Günlükte PPP IP adreslerinden sonra `[ppp] acs… alias 193.192.97.234 added` satırı beklenir. DNS yanıtı tek başına ACS bağlantısı kurulduğunu göstermez. CWMP açık olduğu halde bildirim gelmiyorsa **Raporu indir** çıktısını inceleyin; IP ekleme hatası, DNS ve ACS dinleyici satırlarını kontrol edin. Başka bir test için router'ı sıfırlamak gerekmez; önce mevcut oturumun ağ temizliğinin bitmesini bekleyin.
+
+ACS adresi oturuma ait PPP arayüzüne eklenir; normal akışta elle DNAT gerekmez. `nft flush table ip nat` kullanmayın; bilgisayardaki diğer NAT kurallarını da temizler. Studio mevcut güvenlik duvarını veya NAT kurallarını değiştirmez.
 
 ## Testlerin bitiş koşulları
 
